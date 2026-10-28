@@ -80,21 +80,20 @@ unsigned package.
 
 ## TV remote
 
-| Key | Browsing | Player |
-| --- | --- | --- |
-| Arrows | move (▲ at the top: search, profile) | ◀ ▶ seek, ▲ ▼ show progress |
-| OK | open | pause / resume |
-| ▶ / ▶❚❚ | play | pause / resume |
-| ◀◀ / ▶▶ | – | seek 30 s |
-| 0–9 | jump to a letter (A–Z sorting) | jump to 0–90 % |
-| CH ▲ / CH ▼ | three rows up / down | next / previous episode |
-| Red | search | – |
-| Green | only unwatched | – |
-| Yellow | sort order | – |
-| Blue | settings | playback options |
-| Back | back (twice on the home screen: exit) | stop |
+| Key | Browsing | Player | Comics |
+| --- | --- | --- | --- |
+| Arrows | move | ◀ ▶ seek, ▲ ▼ show progress | ◀ ▶ turn pages, ▲ ▼ scroll |
+| OK | open | pause / resume | whole page / full width |
+| ▶ / ▶❚❚ | play | pause / resume | – |
+| ◀◀ / ▶▶ | – | seek 30 s | turn pages |
+| 0–9 | jump to a letter | jump to position | jump to position |
+| CH ▲ / CH ▼ | three rows up / down | next / previous episode | previous / next page |
+| 🟥 | search | – | – |
+| 🟩 | only unwatched | – | – |
+| 🟨 | sort order | – | – |
+| 🟦 | settings | playback options | – |
+| Back | back | stop | close |
 
-Comics: ◀ ▶ turn pages, OK switches between whole page and full width.
 EPUB: ◀ ▶ pages, ▲ ▼ chapters, OK font size.
 
 ## Notes
