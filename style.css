@@ -809,3 +809,10 @@ body.calm .bd.on { opacity: 0.16; }
   white-space: nowrap;
 }
 #topbar.searching #crumb { max-width: 220px; }
+
+/* cast row on the details page */
+.castrow { clear: both; padding-top: 24px; }
+.card.person { width: 150px; }
+.poster.person { width: 150px; height: 225px; }
+.poster.person img { position: absolute; left: 0; top: 0; width: 150px; height: 225px; }
+.personinitials { height: 225px; line-height: 225px; font-size: 52px; color: #666666; text-align: center; }

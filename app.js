@@ -40,7 +40,7 @@
     } catch (e) {}
     return id || 'jflite-tv';
   }());
-  var VERSION = '0.12.1';
+  var VERSION = '0.13.0';
   var AUTH = 'MediaBrowser Client="' + CLIENT + '", Device="' + DEVICE +
              '", DeviceId="' + DEVICEID + '", Version="' + VERSION + '"';
   var REQUEST_TIMEOUT = 20000;
@@ -121,7 +121,9 @@
     libTitle: '',
     detailButtons: [],
     detailFocus: 0,
-    detailFocusKey: 'play',
+    detailFocusKey: 'play',  /* a button's data-key, or 'cast' */
+    cast: null,              /* cast row on the details page */
+    castCol: 0,
     retryFn: null,
     exitArmedAt: 0,
     lastActivate: 0,
@@ -406,7 +408,7 @@
     return !!state.token && topnav.style.display !== 'none' &&
       (state.view === 'home' || state.view === 'library' || state.view === 'series' ||
        state.view === 'season' || state.view === 'details' || state.view === 'seerr' ||
-       state.view === 'message');
+       state.view === 'person' || state.view === 'message');
   }
 
   /* move the remote focus from the page content up into the top bar */
@@ -1511,6 +1513,7 @@
     else if (state.view === 'details') setBackdrop(state.current);
     else if ((state.view === 'series' || state.view === 'season') && state.bgItem) setBackdrop(state.bgItem);
     else if (state.view === 'library') showRandomBackdrop(state.lib ? state.lib.Id : null);
+    else if (state.view === 'person') showRandomBackdrop(null);
   }
 
   function clearBackdrop() {
@@ -1533,7 +1536,7 @@
   /* ---------- navigation stack ---------- */
 
   var SNAP_KEYS = ['view', 'title', 'items', 'focus', 'kind', 'current', 'basePath', 'totalCount',
-    'homeRows', 'rowFocus', 'lib', 'libSort', 'libUnplayed', 'bgItem', 'libTitle'];
+    'homeRows', 'rowFocus', 'lib', 'libSort', 'libUnplayed', 'bgItem', 'libTitle', 'detailFocusKey', 'castCol'];
 
   function snapshot() {
     var s = {};
@@ -1560,6 +1563,7 @@
     state.basePath = null;
     state.totalCount = 0;
     state.loadingMore = false;
+    state.cast = null;
     setChrome(true);
     setCrumb(state.title);
     content.scrollTop = 0;
@@ -1808,9 +1812,16 @@
     var card = row.els[row.col];
     setFocused(card, true);
     state.focusEl = card;
-    /* Horizontal scroll inside the row. Shift the inner strip with a margin
-       instead of scrollLeft: Tizen 2.3 WebKit doesn't repaint content scrolled
-       into an overflow:hidden box until it changes (e.g. gets focus). */
+    shiftRowTo(row, card);
+    if (state.rowFocus === 0) content.scrollTop = 0;
+    else ensureVisible(row.el);
+  }
+
+  /* Horizontal scroll inside a row (row: scrollEl, innerEl, shift). Shift the
+     inner strip with a margin instead of scrollLeft: Tizen 2.3 WebKit doesn't
+     repaint content scrolled into an overflow:hidden box until it changes
+     (e.g. gets focus). */
+  function shiftRowTo(row, card) {
     var pad = 40;
     var view = row.scrollEl.clientWidth;
     var shift = row.shift || 0;
@@ -1822,8 +1833,6 @@
       row.shift = shift;
       row.innerEl.style.marginLeft = (-shift) + 'px';
     }
-    if (state.rowFocus === 0) content.scrollTop = 0;
-    else ensureVisible(row.el);
   }
 
   function homeMove(dx, dy) {
@@ -2174,7 +2183,8 @@
     grid = grid || content.querySelector('.grid');
     if (!grid) return;
     var i;
-    var opts = { lazy: true };
+    /* a person's titles can be episodes: show which series they belong to */
+    var opts = { lazy: true, showSeries: state.view === 'person' };
     for (i = 0; i < items.length; i++) {
       var card = makeCard(items[i], 'items', opts);
       grid.appendChild(card);
@@ -2331,15 +2341,137 @@
     var item = state.current;
     if (!item) return;
     var id = encodeURIComponent(item.Id);
+    /* an episode lists only its guest stars; the main cast is on the series */
+    var series = item.Type === 'Episode' && item.SeriesId ? null : false;
+    var full = null;
+    function done() {
+      if (!full || series === null || nav !== state.navSeq || state.view !== 'details') return;
+      if (series) full.jfCast = mergeCast(series.People, full.People);
+      state.current = full;
+      var st = content.scrollTop;
+      renderDetailsBody(full);
+      content.scrollTop = st;
+    }
     getJsonAlt('/Items/' + id + '?' + uidParam(),
       '/Users/' + encodeURIComponent(state.userId) + '/Items/' + id,
-      function (err, full) {
-        if (err || !full || nav !== state.navSeq || state.view !== 'details') return;
-        state.current = full;
-        var st = content.scrollTop;
-        renderDetailsBody(full);
-        content.scrollTop = st;
+      function (err, data) {
+        if (err || !data) return;
+        full = data;
+        done();
       });
+    if (series === null) {
+      var sid = encodeURIComponent(item.SeriesId);
+      getJsonAlt('/Items/' + sid + '?' + uidParam(),
+        '/Users/' + encodeURIComponent(state.userId) + '/Items/' + sid,
+        function (err, data) {
+          series = (!err && data) || false;
+          done();
+        });
+    }
+  }
+
+  /* actors and guest stars, without directors, writers etc. */
+  function mergeCast() {
+    var out = [];
+    var seen = {};
+    for (var a = 0; a < arguments.length; a++) {
+      var list = arguments[a] || [];
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        if (!p || !p.Id || seen[p.Id] || (p.Type !== 'Actor' && p.Type !== 'GuestStar')) continue;
+        seen[p.Id] = true;
+        out.push(p);
+      }
+    }
+    return out;
+  }
+
+  function castOf(item) {
+    return item.jfCast || mergeCast(item.People);
+  }
+
+  function personInitials(name) {
+    var w = (name || '').split(/\s+/);
+    var s = '';
+    for (var i = 0; i < w.length && s.length < 2; i++) if (w[i]) s += w[i].charAt(0).toUpperCase();
+    return s;
+  }
+
+  function renderCast(people) {
+    state.cast = null;
+    if (!people.length) return;
+    var row = el('div', 'row castrow');
+    row.appendChild(el('div', 'rowtitle', T('Besetzung')));
+    var scroller = el('div', 'rowscroll');
+    var inner = el('div', 'rowinner');
+    var els = [];
+    for (var i = 0; i < people.length; i++) {
+      var p = people[i];
+      var card = el('div', 'card person');
+      var poster = el('div', 'poster person');
+      poster.appendChild(el('div', 'personinitials', personInitials(p.Name)));
+      if (p.PrimaryImageTag) {
+        var img = document.createElement('img');
+        img.onerror = function () { this.style.display = 'none'; };
+        img.setAttribute('data-src', imageUrl(p.Id, 'Primary', p.PrimaryImageTag, 240));
+        poster.appendChild(img);
+      }
+      card.appendChild(poster);
+      card.appendChild(el('div', 'cardtitle', p.Name || ''));
+      card.appendChild(el('div', 'cardsub', p.Role || ''));
+      inner.appendChild(card);
+      els.push(card);
+    }
+    scroller.appendChild(inner);
+    row.appendChild(scroller);
+    content.appendChild(row);
+    state.cast = { items: people, els: els, el: row, scrollEl: scroller, innerEl: inner, shift: 0 };
+    if (!(state.castCol >= 0 && state.castCol < els.length)) state.castCol = 0;
+    loadCastImages();
+  }
+
+  /* photos of the visible people and a few beyond */
+  function loadCastImages() {
+    var c = state.cast;
+    if (!c) return;
+    var to = Math.min(c.els.length - 1, state.castCol + 8);
+    for (var i = 0; i <= to; i++) {
+      var img = c.els[i].getElementsByTagName('img')[0];
+      var src = img && img.getAttribute('data-src');
+      if (src) {
+        img.removeAttribute('data-src');
+        img.src = src;
+      }
+    }
+  }
+
+  function castMove(dx) {
+    var c = state.cast;
+    var next = state.castCol + dx;
+    if (!c || next < 0 || next >= c.els.length) return;
+    state.castCol = next;
+    updateDetailFocus();
+  }
+
+  /* a person's movies and series in the library */
+  function openPerson(person) {
+    if (!person || !person.Id) return;
+    pushState();
+    var nav = enterView('person', person.Name || '');
+    state.kind = 'items';
+    state.bgItem = null;
+    viewBackdrop();
+    setHints([]);
+    showLoading(T('{0} wird geladen ...', person.Name || ''));
+    var base = '/Items?' + uidParam() + '&personIds=' + encodeURIComponent(person.Id) +
+      '&recursive=true' + FIELDS +
+      '&sortBy=ProductionYear,PremiereDate,SortName&sortOrder=Descending,Descending,Ascending&includeItemTypes=';
+    function retry() { openPerson(person); }
+    var err = T('Titel konnten nicht geladen werden');
+    loadGridPage(nav, base + 'Movie,Series', err, retry, function () {
+      /* only guest roles: list the episodes */
+      loadGridPage(nav, base + 'Episode', err, retry);
+    });
   }
 
   function detailMeta(item) {
@@ -2425,6 +2557,7 @@
     wrap.appendChild(poster);
     wrap.appendChild(info);
     content.appendChild(wrap);
+    renderCast(castOf(item));
     /* keep focus on the same action across re-renders (labels change) */
     setBackdrop(item);
     state.detailButtons = buttons;
@@ -2435,17 +2568,36 @@
     updateDetailFocus();
   }
 
+  /* the focus is on a button or, with detailFocusKey 'cast', in the cast
+     row. 'cast' is kept while the cast is still loading (back from a person). */
   function updateDetailFocus() {
     var b = state.detailButtons;
-    for (var i = 0; i < b.length; i++) setFocused(b[i], i === state.detailFocus);
-    if (b[state.detailFocus]) state.detailFocusKey = b[state.detailFocus].getAttribute('data-key');
+    var c = state.cast;
+    var inCast = !!c && state.detailFocusKey === 'cast';
+    for (var i = 0; i < b.length; i++) setFocused(b[i], !inCast && i === state.detailFocus);
+    if (!inCast && state.detailFocusKey !== 'cast' && b[state.detailFocus]) {
+      state.detailFocusKey = b[state.detailFocus].getAttribute('data-key');
+    }
+    if (!c) return;
+    for (i = 0; i < c.els.length; i++) setFocused(c.els[i], inCast && i === state.castCol);
+    if (inCast) {
+      shiftRowTo(c, c.els[state.castCol]);
+      ensureVisible(c.el);
+      loadCastImages();
+    }
+  }
+
+  function focusDetailButtons() {
+    var b = state.detailButtons[state.detailFocus];
+    state.detailFocusKey = b ? b.getAttribute('data-key') : 'play';
+    updateDetailFocus();
   }
 
   function detailMove(dx) {
     var next = state.detailFocus + dx;
     if (next < 0 || next >= state.detailButtons.length) return;
     state.detailFocus = next;
-    updateDetailFocus();
+    focusDetailButtons();
   }
 
   /* a changed watched/read state must also show up in the screens we return
@@ -2591,7 +2743,7 @@
     var s = state.readerReturn;
     state.readerReturn = null;
     state.view = 'details';
-    if (r && r.item && s && s.view === 'details') state.detailFocusKey = 'read';
+    if (r && r.item && s && s.view === 'details') s.detailFocusKey = 'read';
     if (s) restoreState(s);
     else goHome();
   }
@@ -4290,12 +4442,31 @@
       return;
     }
 
+    if (state.view === 'details' && state.cast && state.detailFocusKey === 'cast') {
+      if (k === K_LEFT || k === K_RIGHT) { e.preventDefault(); castMove(k === K_LEFT ? -1 : 1); }
+      else if (k === K_UP) { e.preventDefault(); focusDetailButtons(); content.scrollTop = 0; }
+      else if (k === K_DOWN) { e.preventDefault(); content.scrollTop += 160; }
+      else if (k === K_ENTER) { e.preventDefault(); openPerson(state.cast.items[state.castCol]); }
+      else if (isBackKey(k)) { e.preventDefault(); goBack(); }
+      return;
+    }
+
     if (state.view === 'details' || state.view === 'seerr') {
       if (k === K_LEFT || k === K_RIGHT) { e.preventDefault(); detailMove(k === K_LEFT ? -1 : 1); }
       else if (k === K_UP) {
         e.preventDefault();
         if (content.scrollTop <= 0) enterTop();
         else content.scrollTop = Math.max(0, content.scrollTop - 160);
+      }
+      else if (k === K_DOWN && state.view === 'details' && state.cast) {
+        e.preventDefault();
+        /* scroll through a long overview first, then go into the cast row */
+        if (offsetTopIn(state.cast.el, content) + 80 > content.scrollTop + content.clientHeight) {
+          content.scrollTop += 160;
+        } else {
+          state.detailFocusKey = 'cast';
+          updateDetailFocus();
+        }
       }
       else if (k === K_DOWN) { e.preventDefault(); content.scrollTop += 160; }
       else if (k === K_ENTER) {

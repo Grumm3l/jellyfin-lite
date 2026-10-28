@@ -23,6 +23,7 @@ Images in the screenshots: [Blender open movies](https://studio.blender.org/film
 - Player options: subtitles, audio track, speed, picture format; seeking with
   preview images
 - Next episode starts automatically
+- Cast on the details page; open an actor to see their movies and series
 - Search in the top bar; with [Seerr](https://github.com/seerr-team/seerr),
   titles that aren't in the library can be requested from there
 - Books: comics (CBZ, CBR), EPUB and PDF, read page by page without

@@ -8,5 +8,3 @@
 - **Multiple versions of a movie**: let the user choose between the media
   sources of a movie (e.g. 4K / 1080p, director's cut) before playback; the
   first version is always used at the moment.
-- **Persons / actors**: show the cast on the details page and open a person
-  to see their other movies and series in the library.
