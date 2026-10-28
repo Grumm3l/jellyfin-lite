@@ -6,6 +6,7 @@
 | NaCl module (`native/dist/tlsproxy_arm.nexe`) | AGPL-3.0, because it contains MuPDF |
 | Signed app package (`.wgt`) | AGPL-3.0, because it contains the module |
 | Jellyfin logo (`logo.png`) | CC BY-SA 4.0, © Jellyfin contributors ([jellyfin-ux](https://github.com/jellyfin/jellyfin-ux)) |
+| Screenshots and animation (`docs/`) | contain images from the [Blender open movies](https://studio.blender.org/films/) (CC BY, © Blender Foundation) and [Pepper & Carrot](https://www.peppercarrot.com) (CC BY 4.0, © David Revoy) |
 
 The MIT-licensed files stay available under MIT on their own.
 
@@ -37,5 +38,4 @@ The complete source of the module is:
 
 This software is based in part on the work of the Independent JPEG Group.
 
-RAR archives are read with libarchive's own implementation; no unrar code is
-included.
+RAR archives are read with libarchive's own implementation.

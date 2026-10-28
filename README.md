@@ -1,18 +1,19 @@
 # Jellyfin Lite
 
-A Jellyfin client for Samsung TVs with Tizen 2.3 (2015 models), written for
-the remote control. Developed and tested on a UE48J5670. The interface is in
-German.
+A Jellyfin client for older Samsung TVs with Tizen 2.3, written for the TV
+remote.
 
 ![Moving through the home screen, the movie library, a details page and search](docs/demo.gif)
 
 | | |
 | --- | --- |
-| ![Home screen](docs/home.png) | ![Details page](docs/details.png) |
-| ![Episodes](docs/episodes.png) | ![Search with Seerr results](docs/search.png) |
-| ![Comic reader](docs/reader.png) | ![Profile selection](docs/login.png) |
+| ![Home screen](docs/home.jpg) | ![Details page](docs/details.jpg) |
+| ![Episodes](docs/episodes.jpg) | ![Search with Seerr results](docs/search.jpg) |
+| ![Comic reader](docs/reader.jpg) | ![Profile selection](docs/login.jpg) |
 
-The screenshots use invented titles and generated artwork.
+Images in the screenshots: [Blender open movies](https://studio.blender.org/films/)
+© Blender Foundation (CC BY), [Pepper & Carrot](https://www.peppercarrot.com)
+© David Revoy (CC BY 4.0).
 
 ## Features
 
@@ -21,12 +22,12 @@ The screenshots use invented titles and generated artwork.
   (E-AC3, TrueHD, …) are transcoded by the server
 - Player options: subtitles, audio track, speed, picture format; seeking with
   preview images
-- Next episode starts automatically (can be turned off)
+- Next episode starts automatically
 - Search in the top bar; with [Seerr](https://github.com/seerr-team/seerr),
   titles that aren't in the library can be requested from there
 - Books: comics (CBZ, CBR), EPUB and PDF, read page by page without
   downloading the whole file
-- Book and home video libraries are browsed by folder, like in jellyfin-web
+- Book and home video libraries are browsed by folder
 - Big libraries: jump to a letter with the number keys (7 = P Q R S)
 - Optional backdrops and a calmer display mode for TVs whose brightness
   jumps between dark and bright screens
@@ -54,7 +55,7 @@ module.
 
 ## Install
 
-Put the certificates into `certs/` (not committed):
+Put the certificates into `certs/`:
 
 | File | Content |
 | --- | --- |
@@ -83,7 +84,7 @@ Other commands:
 | `nix build` | unsigned package, for signing with Tizen Studio |
 | `nix develop` | shell with all of the above and `sdb` |
 
-## Remote control
+## TV remote
 
 | Key | Browsing | Player |
 | --- | --- | --- |
