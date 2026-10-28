@@ -18,7 +18,7 @@ jobs:
 
       - name: Check version
         run: |
-          version=$(grep -o ' version="[^"]*"' config.xml | head -1 | cut -d'"' -f2)
+          version=$(grep -o '<widget [^>]*' config.xml | grep -o ' version="[^"]*"' | cut -d'"' -f2)
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match version $version in config.xml"
             exit 1
