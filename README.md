@@ -25,6 +25,8 @@ Images in the screenshots: [Blender open movies](https://studio.blender.org/film
 - Next episode starts automatically
 - Cast on the details page; open an actor to see their movies and series
 - Movies with several versions (4K, 1080p, director's cut): choose one on the details page
+- Music: albums, artists and playlists; MP3 and AAC play directly, other formats
+  are converted to MP3 by the server
 - Search in the top bar; with [Seerr](https://github.com/seerr-team/seerr),
   titles that aren't in the library can be requested from there
 - Books: comics (CBZ, CBR), EPUB and PDF, read page by page without
@@ -91,12 +93,14 @@ unsigned package.
 | 0–9 | jump to a letter | jump to position | jump to position |
 | CH ▲ / CH ▼ | three rows up / down | next / previous episode | previous / next page |
 | 🟥 | search | – | – |
-| 🟩 | only unwatched | – | – |
+| 🟩 | only unwatched (music: albums / artists) | – | – |
 | 🟨 | sort order | – | – |
 | 🟦 | settings | playback options | – |
 | Back | back | stop | close |
 
 EPUB: ◀ ▶ pages, ▲ ▼ chapters, OK font size.
+
+Music: ◀ ▶ previous / next track, ◀◀ ▶▶ seek 10 s, OK pause.
 
 ## Notes
 

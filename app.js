@@ -40,7 +40,7 @@
     } catch (e) {}
     return id || 'jflite-tv';
   }());
-  var VERSION = '0.14.0';
+  var VERSION = '0.15.0';
   var AUTH = 'MediaBrowser Client="' + CLIENT + '", Device="' + DEVICE +
              '", DeviceId="' + DEVICEID + '", Version="' + VERSION + '"';
   var REQUEST_TIMEOUT = 20000;
@@ -124,6 +124,11 @@
     detailFocusKey: 'play',  /* a button's data-key, or 'cast' */
     cast: null,              /* cast row on the details page */
     castCol: 0,
+    tracks: null,            /* album / playlist page */
+    trackEls: [],
+    trackFocus: -1,
+    music: null,             /* music player */
+    libArtists: false,       /* music library: artists instead of albums */
     retryFn: null,
     exitArmedAt: 0,
     lastActivate: 0,
@@ -409,7 +414,8 @@
     return !!state.token && topnav.style.display !== 'none' &&
       (state.view === 'home' || state.view === 'library' || state.view === 'series' ||
        state.view === 'season' || state.view === 'details' || state.view === 'seerr' ||
-       state.view === 'person' || state.view === 'message');
+       state.view === 'person' || state.view === 'album' || state.view === 'artist' ||
+       state.view === 'message');
   }
 
   /* move the remote focus from the page content up into the top bar */
@@ -432,6 +438,7 @@
     if (quiet) return;
     if (state.view === 'home') updateHomeFocus();
     else if (state.view === 'details' || state.view === 'seerr') updateDetailFocus();
+    else if (state.view === 'album') updateAlbumFocus();
     else if (state.view === 'message') setFocused($('retrybtn'), true);
     else updateFocus();
   }
@@ -557,7 +564,7 @@
   var TYPE_NAMES = {
     Movie: 'Film', Series: 'Serie', Episode: 'Folge', Season: 'Staffel',
     BoxSet: 'Sammlung', Video: 'Video', MusicVideo: 'Musikvideo', Book: 'Buch',
-    MusicAlbum: 'Album', Folder: 'Ordner'
+    MusicAlbum: 'Album', Folder: 'Ordner', MusicArtist: 'Künstler', Playlist: 'Playlist', Audio: 'Titel'
   };
 
   function episodeCode(item) {
@@ -572,6 +579,11 @@
       if (withType && item.SeriesName) parts.push(item.SeriesName);
       var se = episodeCode(item);
       if (se) parts.push(se);
+    } else if (item.Type === 'MusicAlbum' || item.Type === 'Audio') {
+      var by = item.AlbumArtist || (item.Artists || []).join(', ');
+      if (by) parts.push(by);
+      if (item.ProductionYear) parts.push(String(item.ProductionYear));
+      return parts.join('  ·  ');
     } else if (item.ProductionYear) {
       parts.push(String(item.ProductionYear));
     }
@@ -622,6 +634,14 @@
   function isLandscape(item) {
     return !!(item && (item.Type === 'Episode' ||
       (item.PrimaryImageAspectRatio && item.PrimaryImageAspectRatio > 1.1)));
+  }
+
+  /* album covers, artist photos */
+  function isSquare(item) {
+    if (!item) return false;
+    if (item.Type === 'MusicAlbum' || item.Type === 'MusicArtist' || item.Type === 'Audio' || isTrackList(item)) return true;
+    var r = item.PrimaryImageAspectRatio;
+    return !!r && r > 0.9 && r < 1.1;
   }
 
   function isPlayable(item) {
@@ -1091,6 +1111,7 @@
     if (state.focusEl) setFocused(state.focusEl, false);
     var i;
     for (i = 0; i < state.detailButtons.length; i++) setFocused(state.detailButtons[i], false);
+    for (i = 0; state.view === 'album' && i < state.trackEls.length; i++) setFocused(state.trackEls[i], false);
     if ($('retrybtn')) setFocused($('retrybtn'), false);
   }
 
@@ -1359,7 +1380,7 @@
     $('spstatus').textContent = T('Suche ...');
     getJson('/Items?' + uidParam() + '&searchTerm=' + encodeURIComponent(term) +
       /* no episodes: they bury the series ("Dark" matches 42 episodes, 3 series) */
-      '&recursive=true&includeItemTypes=Movie,Series,BoxSet,Video,MusicVideo,Book&limit=40' + FIELDS,
+      '&recursive=true&includeItemTypes=Movie,Series,BoxSet,Video,MusicVideo,Book,MusicAlbum,MusicArtist&limit=40' + FIELDS,
       function (err, data) {
         if (state.sp !== sp || seq !== sp.seq) return;
         sp.pending--;
@@ -1552,7 +1573,8 @@
     else if (state.view === 'details') setBackdrop(state.current);
     else if ((state.view === 'series' || state.view === 'season') && state.bgItem) setBackdrop(state.bgItem);
     else if (state.view === 'library') showRandomBackdrop(state.lib ? state.lib.Id : null);
-    else if (state.view === 'person') showRandomBackdrop(null);
+    else if (state.view === 'person' || state.view === 'artist') showRandomBackdrop(null);
+    else if (state.view === 'album' && state.current) musicBackdrop(state.current);
   }
 
   function clearBackdrop() {
@@ -1575,7 +1597,8 @@
   /* ---------- navigation stack ---------- */
 
   var SNAP_KEYS = ['view', 'title', 'items', 'focus', 'kind', 'current', 'basePath', 'totalCount',
-    'homeRows', 'rowFocus', 'lib', 'libSort', 'libUnplayed', 'bgItem', 'libTitle', 'detailFocusKey', 'castCol'];
+    'homeRows', 'rowFocus', 'lib', 'libSort', 'libUnplayed', 'bgItem', 'libTitle', 'detailFocusKey', 'castCol',
+    'tracks', 'trackFocus', 'libArtists'];
 
   function snapshot() {
     var s = {};
@@ -1644,6 +1667,11 @@
       showDetails(s.current, false);
     } else if (s.view === 'seerr' && s.current) {
       showSeerrDetails(s.current, false);
+    } else if (s.view === 'album' && s.current) {
+      setCrumb(state.title);
+      musicBackdrop(state.current);
+      if (state.tracks) renderAlbum();
+      else showAlbum(state.current);
     } else {
       setCrumb(s.view === 'library' ? libCrumb() : state.title);
       renderGrid(state.items, state.kind, s.focus);
@@ -1734,7 +1762,7 @@
       var latestViews = [];
       for (i = 0; i < views.length && latestViews.length < 4; i++) {
         var ct = views[i].CollectionType;
-        if (ct === 'movies' || ct === 'tvshows' || ct === 'homevideos') latestViews.push(views[i]);
+        if (ct === 'movies' || ct === 'tvshows' || ct === 'homevideos' || ct === 'music') latestViews.push(views[i]);
       }
       var pending = 2 + latestViews.length;
       function done() {
@@ -1908,6 +1936,7 @@
     if (ct === 'boxsets') return 'BoxSet';
     if (ct === 'livetv') return 'LiveTvChannel';
     if (ct === 'music') return 'MusicAlbum';
+    if (ct === 'playlists') return 'Playlist';
     return 'Movie,Series,Video,MusicVideo,Book,BoxSet';
   }
 
@@ -2029,6 +2058,7 @@
     var v = state.lib;
     var t = state.libTitle || (v ? v.Name : state.title);
     var s = SORTS[state.libSort] || SORTS[0];
+    if (isMusicLib(v)) return t + '  ·  ' + (state.libArtists ? T('Künstler') : T('Alben')) + '  ·  ' + T(s.label);
     return t + '  ·  ' + T(s.label) + (state.libUnplayed ? '  ·  ' + T('Ungesehen') : '');
   }
 
@@ -2041,6 +2071,7 @@
     state.bgItem = null;
     state.libSort = 0;
     state.libUnplayed = false;
+    state.libArtists = false;
     reloadLibrary();
     viewBackdrop();
   }
@@ -2071,6 +2102,10 @@
       '&sortBy=' + (folders ? 'IsFolder,' : '') + s.by +
       '&sortOrder=' + (folders ? 'Descending,' : '') + s.order +
       (state.libUnplayed ? '&filters=IsUnplayed' : '');
+    if (isMusicLib(v) && state.libArtists) {
+      base = '/Artists/AlbumArtists?' + uidParam() + '&parentId=' + encodeURIComponent(v.Id) + FIELDS +
+        '&sortBy=' + s.by + '&sortOrder=' + s.order;
+    }
     loadGridPage(nav, base, T('Inhalt konnte nicht geladen werden'), reloadLibrary);
   }
 
@@ -2129,6 +2164,9 @@
     if (item.CollectionType) { openLibrary(item); return; }
     if (item.Type === 'Series') { openSeries(item); return; }
     if (item.Type === 'Season') { openSeason(item); return; }
+    if (isTrackList(item)) { openAlbum(item); return; }
+    if (item.Type === 'MusicArtist') { openArtist(item); return; }
+    if (item.Type === 'Audio') { playMusic([item], 0, false); return; }
     if (isPlayable(item)) { showDetails(item, true); return; }
     if (item.IsFolder) { openLibrary(item); return; }
     showDetails(item, true);
@@ -2192,7 +2230,8 @@
     }
     opts = opts || {};
     var card = el('div', opts.wide ? 'card wide' : 'card');
-    var poster = el('div', opts.wide ? 'poster wide' : (isLandscape(item) ? 'poster landscape' : 'poster'));
+    var poster = el('div', opts.wide ? 'poster wide' : (isLandscape(item) ? 'poster landscape' :
+      (isSquare(item) ? 'poster square' : 'poster')));
     var img = document.createElement('img');
     img.onerror = function () { this.style.display = 'none'; };
     var src = opts.wide ? wideImageUrl(item, 240) : posterUrl(item, 300);
@@ -2345,7 +2384,9 @@
 
   function setGridHints() {
     if (state.view === 'library') {
-      var hints = [['ok', T('Öffnen')], ['play', T('Abspielen')], ['yellow', T('Sortieren')], ['green', T('Ungesehen')]];
+      var music = isMusicLib(state.lib);
+      var hints = [['ok', T('Öffnen')], ['play', T('Abspielen')], ['yellow', T('Sortieren')],
+        ['green', music ? (state.libArtists ? T('Alben') : T('Künstler')) : T('Ungesehen')]];
       if (canJumpLetters()) hints.push(['digits', T('Buchstabe')]);
       setHints(hints.concat([['red', T('Suche')], ['back', T('Zurück')]]));
     } else {
@@ -4507,6 +4548,7 @@
     if (state.view === 'login') { handleLoginKey(e, k); return; }
     if (state.view === 'player') { handlePlayerKey(e, k); return; }
     if (state.view === 'reader') { handleReaderKey(e, k); return; }
+    if (state.view === 'music') { handleMusicKey(e, k); return; }
     if (state.playLoading) {
       /* PlaybackInfo is still loading: only allow cancelling */
       e.preventDefault();
@@ -4528,6 +4570,8 @@
       }
       return;
     }
+
+    if (state.view === 'album') { handleAlbumKey(e, k); return; }
 
     if (state.view === 'details' && state.cast && state.detailFocusKey === 'cast') {
       if (k === K_LEFT || k === K_RIGHT) { e.preventDefault(); castMove(k === K_LEFT ? -1 : 1); }
@@ -4601,7 +4645,8 @@
       reloadLibrary();
     } else if (k === K_GREEN && state.view === 'library') {
       e.preventDefault();
-      state.libUnplayed = !state.libUnplayed;
+      if (isMusicLib(state.lib)) state.libArtists = !state.libArtists;
+      else state.libUnplayed = !state.libUnplayed;
       reloadLibrary();
     } else if (isBackKey(k)) {
       e.preventDefault();
@@ -4609,8 +4654,531 @@
     }
   }
 
+  /* ---------- music: albums, artists, playlists, player ---------- */
+
+  function isMusicLib(v) { return !!v && v.CollectionType === 'music'; }
+
+  /* albums and audio playlists open as a track list */
+  function isTrackList(item) {
+    return !!item && (item.Type === 'MusicAlbum' || (item.Type === 'Playlist' && item.MediaType === 'Audio'));
+  }
+
+  var TRACK_FIELDS = '&fields=MediaSources,PrimaryImageAspectRatio&enableImageTypes=Primary&imageTypeLimit=1';
+
+  function fetchTracks(item, cb) {
+    var path = '/Items?' + uidParam() + '&parentId=' + encodeURIComponent(item.Id) +
+      '&includeItemTypes=Audio&recursive=true&limit=1000' + TRACK_FIELDS +
+      /* a playlist keeps its own order */
+      (item.Type === 'MusicAlbum' ? '&sortBy=ParentIndexNumber,IndexNumber,SortName&sortOrder=Ascending' : '');
+    getJson(path, function (err, data) { cb(err, (!err && data && data.Items) || []); });
+  }
+
+  function trackArtists(t) {
+    return (t.Artists && t.Artists.length ? t.Artists : (t.AlbumArtist ? [t.AlbumArtist] : [])).join(', ');
+  }
+
+  function fmtTrackTime(ticks) {
+    return ticks ? fmtTime(Math.round(ticks / TICKS)) : '';
+  }
+
+  function musicBackdrop(item) {
+    if (itemBackdropUrl(item)) setBackdrop(item);
+    else showRandomBackdrop(null);
+  }
+
+  function openArtist(artist) {
+    if (!artist || !artist.Id) return;
+    pushState();
+    var nav = enterView('artist', artist.Name || '');
+    state.kind = 'items';
+    state.bgItem = null;
+    showRandomBackdrop(null);
+    setHints([]);
+    showLoading(T('{0} wird geladen ...', artist.Name || ''));
+    var base = '/Items?' + uidParam() + '&includeItemTypes=MusicAlbum&recursive=true' + FIELDS +
+      '&sortBy=ProductionYear,SortName&sortOrder=Descending,Ascending';
+    function retry() { openArtist(artist); }
+    var err = T('Alben konnten nicht geladen werden');
+    loadGridPage(nav, base + '&albumArtistIds=' + encodeURIComponent(artist.Id), err, retry, function () {
+      /* only guest appearances: albums the artist plays on */
+      loadGridPage(nav, base + '&artistIds=' + encodeURIComponent(artist.Id), err, retry);
+    });
+  }
+
+  /* album or audio playlist: header with buttons, then the tracks */
+  function openAlbum(album) {
+    pushState();
+    state.trackFocus = -1;
+    state.detailFocusKey = 'play';
+    showAlbum(album);
+  }
+
+  function showAlbum(album) {
+    var nav = enterView('album', album.Name || '');
+    state.current = album;
+    state.tracks = null;
+    musicBackdrop(album);
+    setHints([]);
+    showLoading(T('{0} wird geladen ...', album.Name || ''));
+    fetchTracks(album, function (err, tracks) {
+      if (nav !== state.navSeq) return;
+      if (err) { showRetry(T('Titel konnten nicht geladen werden ({0}).', errText(err)), function () { showAlbum(album); }); return; }
+      if (!tracks.length) { showError(T('Keine Einträge gefunden.')); return; }
+      state.tracks = tracks;
+      renderAlbum();
+    });
+  }
+
+  function renderAlbum() {
+    var album = state.current;
+    var tracks = state.tracks || [];
+    content.innerHTML = '';
+    var wrap = el('div', 'detail album');
+    var poster = el('div', 'detailposter square');
+    var img = document.createElement('img');
+    img.onerror = function () { this.style.display = 'none'; };
+    img.src = posterUrl(album, 300);
+    poster.appendChild(img);
+    var info = el('div', 'detailinfo');
+    var artist = album.AlbumArtist || (album.Type === 'MusicAlbum' ? trackArtists(album) : '');
+    if (artist) info.appendChild(el('div', 'detailseries', artist));
+    info.appendChild(el('div', 'detailtitle', album.Name || ''));
+    var total = 0;
+    for (var i = 0; i < tracks.length; i++) total += tracks[i].RunTimeTicks || 0;
+    var meta = [];
+    if (album.ProductionYear) meta.push(String(album.ProductionYear));
+    meta.push(tracks.length === 1 ? T('1 Titel') : T('{0} Titel', tracks.length));
+    if (total) meta.push(fmtRuntime(total));
+    info.appendChild(el('div', 'detailmeta', meta.join('  ·  ')));
+
+    var buttons = [];
+    var btnRow = el('div', 'btnrow');
+    function addBtn(key, label, cls, fn) {
+      var b = el('div', 'btn' + (cls ? ' ' + cls : ''), label);
+      b.onclick = fn;
+      b.setAttribute('data-key', key);
+      btnRow.appendChild(b);
+      buttons.push(b);
+    }
+    addBtn('play', T('Abspielen'), 'primary', function () { playMusic(tracks, 0, false); });
+    addBtn('shuffle', T('Zufallswiedergabe'), '', function () { playMusic(tracks, 0, true); });
+    var aa = album.AlbumArtists && album.AlbumArtists[0];
+    if (aa && aa.Id) addBtn('artist', T('Zum Künstler'), '', function () { openArtist(aa); });
+    info.appendChild(btnRow);
+    wrap.appendChild(poster);
+    wrap.appendChild(info);
+    content.appendChild(wrap);
+
+    /* disc numbers only when the album has more than one disc */
+    var discs = {};
+    var nDiscs = 0;
+    for (i = 0; i < tracks.length; i++) {
+      var d = tracks[i].ParentIndexNumber || 1;
+      if (!discs[d]) { discs[d] = true; nDiscs++; }
+    }
+    var list = el('div', 'tracks');
+    state.trackEls = [];
+    for (i = 0; i < tracks.length; i++) {
+      var t = tracks[i];
+      var row = el('div', 'track');
+      var num = album.Type === 'MusicAlbum' && t.IndexNumber ?
+        (nDiscs > 1 ? (t.ParentIndexNumber || 1) + '.' : '') + t.IndexNumber : String(i + 1);
+      row.appendChild(el('span', 'tnum', num));
+      var name = el('span', 'tname', t.Name || '');
+      var by = trackArtists(t);
+      if (by && by !== artist) name.appendChild(el('span', 'tartist', '  ·  ' + by));
+      row.appendChild(name);
+      row.appendChild(el('span', 'ttime', fmtTrackTime(t.RunTimeTicks)));
+      (function (idx) { row.onclick = function () { playMusic(tracks, idx, false); }; }(i));
+      list.appendChild(row);
+      state.trackEls.push(row);
+    }
+    content.appendChild(list);
+    state.detailButtons = buttons;
+    state.detailFocus = 0;
+    for (i = 0; i < buttons.length; i++) {
+      if (buttons[i].getAttribute('data-key') === state.detailFocusKey) state.detailFocus = i;
+    }
+    if (!(state.trackFocus < tracks.length)) state.trackFocus = -1;
+    updateAlbumFocus();
+    setHints([['ok', T('Abspielen')], ['arrows', T('Auswählen')], ['back', T('Zurück')]]);
+  }
+
+  /* trackFocus -1: the buttons, else a track */
+  function updateAlbumFocus() {
+    var b = state.detailButtons;
+    var i;
+    for (i = 0; i < b.length; i++) setFocused(b[i], state.trackFocus < 0 && i === state.detailFocus);
+    if (state.trackFocus < 0 && b[state.detailFocus]) state.detailFocusKey = b[state.detailFocus].getAttribute('data-key');
+    var els = state.trackEls || [];
+    for (i = 0; i < els.length; i++) setFocused(els[i], i === state.trackFocus);
+    if (state.trackFocus >= 0 && els[state.trackFocus]) ensureVisible(els[state.trackFocus]);
+  }
+
+  function albumMove(dy) {
+    var n = (state.trackEls || []).length;
+    var next = state.trackFocus + dy;
+    if (state.trackFocus < 0 && dy < 0) { enterTop(); return; }
+    if (next < -1) next = -1;
+    if (next >= n) next = n - 1;
+    if (next === state.trackFocus) return;
+    state.trackFocus = next;
+    updateAlbumFocus();
+    if (next < 0) content.scrollTop = 0;
+  }
+
+  function handleAlbumKey(e, k) {
+    if (!state.tracks) {
+      if (isBackKey(k)) { e.preventDefault(); goBack(); }
+      return;
+    }
+    e.preventDefault();
+    if (k === K_UP) albumMove(-1);
+    else if (k === K_DOWN) albumMove(1);
+    else if (k === K_CH_UP) albumMove(state.trackFocus < 0 ? 0 : -10);
+    else if (k === K_CH_DOWN) albumMove(10);
+    else if ((k === K_LEFT || k === K_RIGHT) && state.trackFocus < 0) {
+      var next = state.detailFocus + (k === K_LEFT ? -1 : 1);
+      if (next >= 0 && next < state.detailButtons.length) { state.detailFocus = next; updateAlbumFocus(); }
+    } else if (k === K_ENTER) {
+      if (state.trackFocus >= 0) playMusic(state.tracks, state.trackFocus, false);
+      else if (state.detailButtons[state.detailFocus]) state.detailButtons[state.detailFocus].onclick();
+    } else if (isPlayKey(k)) {
+      playMusic(state.tracks, Math.max(0, state.trackFocus), false);
+    } else if (isBackKey(k)) {
+      goBack();
+    }
+  }
+
+  /* --- music player --- */
+
+  var musicEl = document.getElementById('music');
+
+  function shuffled(list) {
+    var a = list.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  /* AVPlay on Tizen 2.3 plays MP3 and AAC; everything else (FLAC, Opus,
+     ALAC, ...) is converted to MP3 by the server */
+  function audioDirect(t) {
+    var src = t.MediaSources && t.MediaSources[0];
+    if (!src) return false;
+    var container = String(src.Container || t.Container || '').toLowerCase();
+    var codec = '';
+    var streams = src.MediaStreams || [];
+    for (var i = 0; i < streams.length; i++) {
+      if (streams[i].Type === 'Audio') { codec = String(streams[i].Codec || '').toLowerCase(); break; }
+    }
+    if (container === 'mp3') return !codec || codec === 'mp3';
+    return /^(m4a|m4b|mp4|aac)$/.test(container) && codec === 'aac';
+  }
+
+  function musicUrl(m, t, startMs) {
+    var src = t.MediaSources && t.MediaSources[0];
+    var msid = encodeURIComponent(src && src.Id ? src.Id : t.Id);
+    var id = encodeURIComponent(t.Id);
+    if (m.method === 'DirectPlay') return absUrl('/Audio/' + id + '/stream?static=true&MediaSourceId=' + msid);
+    return absUrl('/Audio/' + id + '/stream.mp3?AudioCodec=mp3&AudioBitrate=256000&MediaSourceId=' + msid +
+      '&PlaySessionId=' + encodeURIComponent(m.sessionId) + '&DeviceId=' + encodeURIComponent(DEVICEID) +
+      (startMs > 0 ? '&StartTimeTicks=' + Math.round(startMs * TICKS) : ''));
+  }
+
+  function musicTrack() { var m = state.music; return m ? m.queue[m.index] : null; }
+
+  function musicPos() {
+    var m = state.music;
+    if (!m || !m.prepared) return m ? m.offset : 0;
+    var cur = 0;
+    try { cur = webapis.avplay.getCurrentTime(); } catch (e) {}
+    return (cur || 0) + m.offset;
+  }
+
+  function musicDuration() {
+    var t = musicTrack();
+    if (t && t.RunTimeTicks) return Math.round(t.RunTimeTicks / TICKS);
+    var d = 0;
+    try { d = webapis.avplay.getDuration(); } catch (e) {}
+    return d > 0 ? d : 0;
+  }
+
+  function musicReport(kind, posMs, eventName, cb) {
+    var m = state.music;
+    var t = musicTrack();
+    if (!m || !t) { if (cb) cb(); return; }
+    var src = t.MediaSources && t.MediaSources[0];
+    var body = {
+      ItemId: t.Id,
+      MediaSourceId: src && src.Id ? src.Id : t.Id,
+      PlaySessionId: m.sessionId,
+      PositionTicks: Math.max(0, Math.round(posMs * TICKS)),
+      IsPaused: m.paused,
+      IsMuted: false,
+      CanSeek: true,
+      PlayMethod: m.method,
+      QueueableMediaTypes: ['Audio']
+    };
+    if (eventName) body.EventName = eventName;
+    m.lastReport = now();
+    api('POST', '/Sessions/Playing' + kind, body, function () { if (cb) cb(); });
+  }
+
+  /* tracks: the queue; shuffle: random order (from the first track) */
+  function playMusic(tracks, index, shuffle) {
+    if (!tracks || !tracks.length) return;
+    var p = null;
+    try { p = webapis.avplay; } catch (e) { p = null; }
+    if (!p) { showToast(T('AVPlay nicht verfügbar')); return; }
+    if (state.music) stopMusicTrack();
+    var queue = shuffle ? shuffled(tracks) : tracks.slice();
+    state.music = {
+      queue: queue, index: shuffle ? 0 : index, token: 0, prepared: false, paused: false,
+      method: 'DirectPlay', offset: 0, sessionId: '', reported: false, lastReport: 0,
+      triedFallback: false, timer: null, prepareTimer: null,
+      returnSnap: state.view === 'music' && state.music ? state.music.returnSnap : snapshot()
+    };
+    if (state.overlay) closeOverlay();
+    state.view = 'music';
+    setChrome(false);
+    musicEl.className = '';
+    startMusicTrack(0);
+  }
+
+  function startMusicTrack(startMs) {
+    var m = state.music;
+    var t = musicTrack();
+    if (!m || !t) return;
+    var token = ++m.token;
+    m.prepared = false;
+    m.paused = false;
+    m.reported = false;
+    m.triedFallback = false;
+    m.method = audioDirect(t) ? 'DirectPlay' : 'Transcode';
+    m.sessionId = 'm' + now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+    renderMusic();
+    openMusicStream(token, startMs || 0);
+  }
+
+  function openMusicStream(token, startMs) {
+    var m = state.music;
+    var t = musicTrack();
+    var p = webapis.avplay;
+    m.offset = m.method === 'Transcode' ? startMs : 0;
+    if (m.timer) { clearInterval(m.timer); m.timer = null; }
+    if (m.prepareTimer) { clearTimeout(m.prepareTimer); m.prepareTimer = null; }
+    showPlayerLoading();
+    function stale() { return state.music !== m || token !== m.token; }
+    function failed(msg) {
+      if (stale()) return;
+      if (m.prepareTimer) { clearTimeout(m.prepareTimer); m.prepareTimer = null; }
+      if (m.method === 'DirectPlay' && !m.triedFallback) {
+        /* the TV couldn't play the file itself: let the server convert it */
+        m.triedFallback = true;
+        m.method = 'Transcode';
+        openMusicStream(token, m.prepared ? musicPos() : startMs);
+        return;
+      }
+      hidePlayerLoading();
+      showToast(T('Titel konnte nicht abgespielt werden: {0}', t.Name || '') + (msg ? ' (' + msg + ')' : ''));
+      if (m.index < m.queue.length - 1) { m.index++; startMusicTrack(0); }
+      else stopMusic();
+    }
+    resetAvplay(function () {
+      if (stale()) return;
+      try {
+        p.open(musicUrl(m, t, startMs));
+        p.setListener({
+          onstreamcompleted: function () { if (!stale()) musicNext(true); },
+          onbufferingstart: function () { if (!stale()) showPlayerLoading(); },
+          onbufferingcomplete: function () { if (!stale()) hidePlayerLoading(); },
+          onerror: function (e) { failed(String(e)); }
+        });
+        p.prepareAsync(function () {
+          if (stale()) return;
+          if (m.prepareTimer) { clearTimeout(m.prepareTimer); m.prepareTimer = null; }
+          m.prepared = true;
+          try {
+            p.play();
+            if (m.method === 'DirectPlay' && startMs > 0) { try { p.seekTo(startMs); } catch (se) {} }
+          } catch (e) { failed(String(e)); return; }
+          hidePlayerLoading();
+          if (!m.reported) { m.reported = true; musicReport('', startMs); }
+          m.timer = setInterval(musicTick, 500);
+          updateMusicUi();
+        }, function (e) { failed(String(e)); });
+        m.prepareTimer = setTimeout(function () { if (!m.prepared) failed(T('Timeout')); }, m.triedFallback ? 40000 : 15000);
+      } catch (e) {
+        failed(String(e));
+      }
+    });
+  }
+
+  function musicTick() {
+    var m = state.music;
+    if (!m) return;
+    updateMusicUi();
+    if (m.prepared && !m.paused && now() - m.lastReport > 10000) musicReport('/Progress', musicPos(), 'TimeUpdate');
+  }
+
+  /* report the current track as stopped and end its transcode */
+  function stopMusicTrack(posMs) {
+    var m = state.music;
+    if (!m) return;
+    m.token++;
+    if (m.timer) { clearInterval(m.timer); m.timer = null; }
+    if (m.prepareTimer) { clearTimeout(m.prepareTimer); m.prepareTimer = null; }
+    if (m.reported) {
+      m.reported = false;
+      musicReport('/Stopped', typeof posMs === 'number' ? posMs : musicPos());
+    }
+    if (m.method === 'Transcode') {
+      api('DELETE', '/Videos/ActiveEncodings?deviceId=' + encodeURIComponent(DEVICEID) +
+        '&playSessionId=' + encodeURIComponent(m.sessionId), null, null);
+    }
+  }
+
+  function stopMusic() {
+    var m = state.music;
+    if (!m) return;
+    stopMusicTrack();
+    state.music = null;
+    hidePlayerLoading();
+    musicEl.className = 'hidden';
+    musicEl.innerHTML = '';
+    resetAvplay(function () {});
+    state.homeDirty = true;
+    restoreState(m.returnSnap);
+  }
+
+  /* auto: the track ended by itself */
+  function musicNext(auto) {
+    var m = state.music;
+    if (!m) return;
+    if (m.index >= m.queue.length - 1) {
+      if (auto) { stopMusicTrack(musicDuration()); stopMusic(); }
+      else showToast(T('Letzter Titel'));
+      return;
+    }
+    stopMusicTrack(auto ? musicDuration() : undefined);
+    m.index++;
+    startMusicTrack(0);
+  }
+
+  /* like a CD player: back to the start of the track, pressed again within
+     3 seconds: the previous track */
+  function musicPrev() {
+    var m = state.music;
+    if (!m) return;
+    if (musicPos() > 3000 || m.index === 0) { musicSeek(0); return; }
+    stopMusicTrack();
+    m.index--;
+    startMusicTrack(0);
+  }
+
+  function musicSeek(ms) {
+    var m = state.music;
+    if (!m || !m.prepared) return;
+    var dur = musicDuration();
+    if (ms < 0) ms = 0;
+    if (dur > 0 && ms > dur - 1000) ms = Math.max(0, dur - 1000);
+    if (m.method === 'Transcode') {
+      /* a converted stream can't seek: restart it at the position */
+      musicReport('/Progress', ms, 'TimeUpdate');
+      api('DELETE', '/Videos/ActiveEncodings?deviceId=' + encodeURIComponent(DEVICEID) +
+        '&playSessionId=' + encodeURIComponent(m.sessionId), null, null);
+      m.prepared = false;
+      openMusicStream(++m.token, ms);
+      return;
+    }
+    try { webapis.avplay.seekTo(ms); } catch (e) {}
+    updateMusicUi();
+  }
+
+  function musicTogglePause(mode) {
+    var m = state.music;
+    if (!m || !m.prepared) return;
+    var pause = mode ? mode === 'pause' : !m.paused;
+    if (pause === m.paused) return;
+    try {
+      if (pause) webapis.avplay.pause();
+      else webapis.avplay.play();
+    } catch (e) {}
+    m.paused = pause;
+    updateMusicUi();
+    musicReport('/Progress', musicPos(), pause ? 'Pause' : 'Unpause');
+  }
+
+  function trackCoverUrl(t, height) {
+    if (t.ImageTags && t.ImageTags.Primary) return imageUrl(t.Id, 'Primary', t.ImageTags.Primary, height);
+    if (t.AlbumId && t.AlbumPrimaryImageTag) return imageUrl(t.AlbumId, 'Primary', t.AlbumPrimaryImageTag, height);
+    return t.AlbumId ? imageUrl(t.AlbumId, 'Primary', '', height) : imageUrl(t.Id, 'Primary', '', height);
+  }
+
+  function renderMusic() {
+    var m = state.music;
+    var t = musicTrack();
+    if (!m || !t) return;
+    var html = '<div id="mcover"><img src="' + esc(trackCoverUrl(t, 480)) + '" onerror="this.style.display=\'none\'"></div>' +
+      '<div id="minfo">' +
+      '<div id="mtitle">' + esc(t.Name || '') + '</div>' +
+      '<div id="martist">' + esc(trackArtists(t)) + '</div>' +
+      '<div id="malbum">' + esc(t.Album || '') + '</div>' +
+      '<div id="mprogress"><div id="mfill"></div></div>' +
+      '<div id="mtime"><span id="mcur"></span><span id="mstate"></span><span id="mpos"></span></div>';
+    var next = m.queue.slice(m.index + 1, m.index + 6);
+    if (next.length) {
+      html += '<div id="mqueue"><div class="mqtitle">' + esc(T('Als Nächstes')) + '</div>';
+      for (var i = 0; i < next.length; i++) {
+        html += '<div class="mqrow"><span class="mqname">' + esc(next[i].Name || '') + '</span>' +
+          '<span class="mqartist">' + esc(trackArtists(next[i])) + '</span></div>';
+      }
+      html += '</div>';
+    }
+    html += '</div><div id="mhint"></div>';
+    musicEl.innerHTML = html;
+    updateMusicUi();
+  }
+
+  function updateMusicUi() {
+    var m = state.music;
+    if (!m || !$('mcur')) return;
+    var pos = musicPos();
+    var dur = musicDuration();
+    $('mcur').textContent = fmtTime(pos) + (dur ? ' / ' + fmtTime(dur) : '');
+    $('mstate').textContent = m.paused ? T('Pausiert') : '';
+    $('mpos').textContent = T('Titel {0} von {1}', m.index + 1, m.queue.length);
+    $('mfill').style.width = (dur > 0 ? Math.min(100, pos / dur * 100) : 0) + '%';
+    $('mhint').textContent = [m.paused ? T('OK: Weiter') : T('OK: Pause'), T('◀ ▶: Titel'),
+      T('◀◀ ▶▶: Spulen'), T('Zurück: Stopp')].join('  ·  ');
+  }
+
+  function handleMusicKey(e, k) {
+    e.preventDefault();
+    if (isBackKey(k) || k === K_STOP || k === 178) stopMusic();
+    else if (k === K_ENTER || k === K_PLAYPAUSE || k === 179) musicTogglePause();
+    else if (k === K_PLAY) musicTogglePause('play');
+    else if (k === K_PAUSE) musicTogglePause('pause');
+    else if (k === K_RIGHT || k === K_CH_UP) musicNext(false);
+    else if (k === K_LEFT || k === K_CH_DOWN) musicPrev();
+    else if (k === K_FF) musicSeek(musicPos() + 10000);
+    else if (k === K_RW) musicSeek(musicPos() - 10000);
+    else if (k >= 48 && k <= 57) musicSeek(musicDuration() * (k - 48) / 10);
+  }
+
   function playOrOpen(item) {
     if (!item) return;
+    if (item.Type === 'Audio') { playMusic([item], 0, false); return; }
+    if (isTrackList(item)) {
+      fetchTracks(item, function (err, tracks) {
+        if (err) showToast(T('Titel konnten nicht geladen werden ({0}).', errText(err)));
+        else playMusic(tracks, 0, false);
+      });
+      return;
+    }
     if (isPlayable(item)) playItem(item);
     else if (item.Type === 'Book') openBook(item, false);
     else openItem(item);
@@ -4632,6 +5200,7 @@
   function onVisibility() {
     var hidden = document.hidden || document.webkitHidden;
     if (hidden && state.view === 'player' && state.prepared) togglePause('pause');
+    if (hidden && state.view === 'music') musicTogglePause('pause');
   }
   document.addEventListener('visibilitychange', onVisibility);
   document.addEventListener('webkitvisibilitychange', onVisibility);
