@@ -22,7 +22,10 @@ Images in the screenshots: [Blender open movies](https://studio.blender.org/film
   (E-AC3, TrueHD, …) are transcoded by the server
 - Player options: subtitles, audio track, speed, picture format; seeking with
   preview images
-- Next episode starts automatically
+- Next episode: shown at the credits with a countdown, can be cancelled
+- Skip intro, recap and preview (media segments, Jellyfin 10.10+ with e.g. the
+  Intro Skipper plugin)
+- A stream that breaks off (network, long pause) resumes at the same position
 - Cast on the details page; open an actor to see their movies and series
 - Movies with several versions (4K, 1080p, director's cut): choose one on the details page
 - Music: albums, artists and playlists; MP3 and AAC play directly, other formats
@@ -87,7 +90,7 @@ unsigned package.
 | Key | Browsing | Player | Comics |
 | --- | --- | --- | --- |
 | Arrows | move | ◀ ▶ seek, ▲ ▼ show progress | ◀ ▶ turn pages, ▲ ▼ scroll |
-| OK | open | pause / resume | whole page / full width |
+| OK | open | pause / resume (skip intro when shown) | whole page / full width |
 | ▶ / ▶❚❚ | play | pause / resume | – |
 | ◀◀ / ▶▶ | – | seek 30 s | turn pages |
 | 0–9 | jump to a letter | jump to position | jump to position |
@@ -100,7 +103,8 @@ unsigned package.
 
 EPUB: ◀ ▶ pages, ▲ ▼ chapters, OK font size.
 
-Music: ◀ ▶ previous / next track, ◀◀ ▶▶ seek 10 s, OK pause.
+Music: ◀ ▶ choose a button (previous, pause, next), OK press it, CH ▲ ▼ next / previous
+track, ◀◀ ▶▶ seek 10 s.
 
 ## Notes
 

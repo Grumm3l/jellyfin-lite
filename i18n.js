@@ -234,7 +234,19 @@ window.JF_I18N = {
     "Pausiert": "Paused",
     "Titel {0} von {1}": "Track {0} of {1}",
     "◀ ▶: Titel": "◀ ▶: track",
-    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: seek"
+    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: seek",
+    "Nächste Folge": "Next episode",
+    "Wiedergabe unterbrochen": "Playback interrupted",
+    "Jetzt abspielen": "Play now",
+    "OK: Überspringen": "OK: Skip",
+    "Startet in {0} s": "Starts in {0} s",
+    "Verbindung unterbrochen, setze fort ...": "Connection lost, resuming ...",
+    "Intro überspringen": "Skip intro",
+    "Rückblick überspringen": "Skip recap",
+    "Vorschau überspringen": "Skip preview",
+    "Werbung überspringen": "Skip ad",
+    "◀ ▶ OK: Steuerung": "◀ ▶ OK: Controls",
+    "CH ▲ ▼: Titel": "CH ▲ ▼: Track"
   },
   fr: {
     "1 Staffel": "1 saison",
@@ -468,7 +480,19 @@ window.JF_I18N = {
     "Pausiert": "En pause",
     "Titel {0} von {1}": "Titre {0} sur {1}",
     "◀ ▶: Titel": "◀ ▶ : titre",
-    "◀◀ ▶▶: Spulen": "◀◀ ▶▶ : avancer/reculer"
+    "◀◀ ▶▶: Spulen": "◀◀ ▶▶ : avancer/reculer",
+    "Nächste Folge": "Épisode suivant",
+    "Wiedergabe unterbrochen": "Lecture interrompue",
+    "Jetzt abspielen": "Lire maintenant",
+    "OK: Überspringen": "OK : Passer",
+    "Startet in {0} s": "Commence dans {0} s",
+    "Verbindung unterbrochen, setze fort ...": "Connexion perdue, reprise ...",
+    "Intro überspringen": "Passer l'intro",
+    "Rückblick überspringen": "Passer le résumé",
+    "Vorschau überspringen": "Passer l'aperçu",
+    "Werbung überspringen": "Passer la pub",
+    "◀ ▶ OK: Steuerung": "◀ ▶ OK : Commandes",
+    "CH ▲ ▼: Titel": "CH ▲ ▼ : Titre"
   },
   es: {
     "1 Staffel": "1 temporada",
@@ -702,7 +726,19 @@ window.JF_I18N = {
     "Pausiert": "En pausa",
     "Titel {0} von {1}": "Canción {0} de {1}",
     "◀ ▶: Titel": "◀ ▶: canción",
-    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: avanzar/retroceder"
+    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: avanzar/retroceder",
+    "Nächste Folge": "Siguiente episodio",
+    "Wiedergabe unterbrochen": "Reproducción interrumpida",
+    "Jetzt abspielen": "Reproducir ahora",
+    "OK: Überspringen": "OK: Saltar",
+    "Startet in {0} s": "Empieza en {0} s",
+    "Verbindung unterbrochen, setze fort ...": "Conexión perdida, reanudando ...",
+    "Intro überspringen": "Saltar intro",
+    "Rückblick überspringen": "Saltar resumen",
+    "Vorschau überspringen": "Saltar avance",
+    "Werbung überspringen": "Saltar anuncio",
+    "◀ ▶ OK: Steuerung": "◀ ▶ OK: Controles",
+    "CH ▲ ▼: Titel": "CH ▲ ▼: Canción"
   },
   it: {
     "1 Staffel": "1 stagione",
@@ -936,7 +972,19 @@ window.JF_I18N = {
     "Pausiert": "In pausa",
     "Titel {0} von {1}": "Brano {0} di {1}",
     "◀ ▶: Titel": "◀ ▶: brano",
-    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: avanti/indietro"
+    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: avanti/indietro",
+    "Nächste Folge": "Episodio successivo",
+    "Wiedergabe unterbrochen": "Riproduzione interrotta",
+    "Jetzt abspielen": "Riproduci ora",
+    "OK: Überspringen": "OK: Salta",
+    "Startet in {0} s": "Inizia tra {0} s",
+    "Verbindung unterbrochen, setze fort ...": "Connessione persa, riprendo ...",
+    "Intro überspringen": "Salta intro",
+    "Rückblick überspringen": "Salta riassunto",
+    "Vorschau überspringen": "Salta anteprima",
+    "Werbung überspringen": "Salta pubblicità",
+    "◀ ▶ OK: Steuerung": "◀ ▶ OK: Comandi",
+    "CH ▲ ▼: Titel": "CH ▲ ▼: Brano"
   },
   nl: {
     "1 Staffel": "1 seizoen",
@@ -1170,7 +1218,19 @@ window.JF_I18N = {
     "Pausiert": "Gepauzeerd",
     "Titel {0} von {1}": "Nummer {0} van {1}",
     "◀ ▶: Titel": "◀ ▶: nummer",
-    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: spoelen"
+    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: spoelen",
+    "Nächste Folge": "Volgende aflevering",
+    "Wiedergabe unterbrochen": "Afspelen onderbroken",
+    "Jetzt abspielen": "Nu afspelen",
+    "OK: Überspringen": "OK: Overslaan",
+    "Startet in {0} s": "Start over {0} s",
+    "Verbindung unterbrochen, setze fort ...": "Verbinding verbroken, hervatten ...",
+    "Intro überspringen": "Intro overslaan",
+    "Rückblick überspringen": "Terugblik overslaan",
+    "Vorschau überspringen": "Voorproefje overslaan",
+    "Werbung überspringen": "Reclame overslaan",
+    "◀ ▶ OK: Steuerung": "◀ ▶ OK: Bediening",
+    "CH ▲ ▼: Titel": "CH ▲ ▼: Nummer"
   },
   pl: {
     "1 Staffel": "1 sezon",
@@ -1404,7 +1464,19 @@ window.JF_I18N = {
     "Pausiert": "Wstrzymano",
     "Titel {0} von {1}": "Utwór {0} z {1}",
     "◀ ▶: Titel": "◀ ▶: utwór",
-    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: przewijanie"
+    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: przewijanie",
+    "Nächste Folge": "Następny odcinek",
+    "Wiedergabe unterbrochen": "Odtwarzanie przerwane",
+    "Jetzt abspielen": "Odtwórz teraz",
+    "OK: Überspringen": "OK: Pomiń",
+    "Startet in {0} s": "Start za {0} s",
+    "Verbindung unterbrochen, setze fort ...": "Utracono połączenie, wznawianie ...",
+    "Intro überspringen": "Pomiń czołówkę",
+    "Rückblick überspringen": "Pomiń streszczenie",
+    "Vorschau überspringen": "Pomiń zapowiedź",
+    "Werbung überspringen": "Pomiń reklamę",
+    "◀ ▶ OK: Steuerung": "◀ ▶ OK: Sterowanie",
+    "CH ▲ ▼: Titel": "CH ▲ ▼: Utwór"
   },
   pt: {
     "1 Staffel": "1 temporada",
@@ -1638,6 +1710,18 @@ window.JF_I18N = {
     "Pausiert": "Em pausa",
     "Titel {0} von {1}": "Faixa {0} de {1}",
     "◀ ▶: Titel": "◀ ▶: faixa",
-    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: avançar/recuar"
+    "◀◀ ▶▶: Spulen": "◀◀ ▶▶: avançar/recuar",
+    "Nächste Folge": "Próximo episódio",
+    "Wiedergabe unterbrochen": "Reprodução interrompida",
+    "Jetzt abspielen": "Reproduzir agora",
+    "OK: Überspringen": "OK: Saltar",
+    "Startet in {0} s": "Começa em {0} s",
+    "Verbindung unterbrochen, setze fort ...": "Ligação perdida, a retomar ...",
+    "Intro überspringen": "Saltar introdução",
+    "Rückblick überspringen": "Saltar resumo",
+    "Vorschau überspringen": "Saltar antevisão",
+    "Werbung überspringen": "Saltar anúncio",
+    "◀ ▶ OK: Steuerung": "◀ ▶ OK: Controlos",
+    "CH ▲ ▼: Titel": "CH ▲ ▼: Faixa"
   }
 };

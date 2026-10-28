@@ -859,8 +859,40 @@ body.calm #music { background: #181818; }
 #mtime { margin-top: 12px; font-size: 22px; color: #cccccc; }
 #mstate { margin-left: 24px; color: #ffcc80; }
 #mpos { float: right; color: #888888; }
-#mqueue { margin-top: 36px; }
+#mqueue { margin-top: 28px; }
 .mqtitle { font-size: 21px; color: #9fb3c2; margin-bottom: 6px; }
 .mqrow { font-size: 20px; line-height: 34px; color: #cccccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mqartist { color: #888888; margin-left: 14px; }
 #mhint { position: absolute; left: 80px; bottom: 36px; font-size: 20px; color: #999999; }
+
+/* music player controls: previous, play/pause, next (drawn, no icon font on the TV) */
+#mctrl { margin-top: 26px; height: 96px; }
+.mbtn { position: relative; display: inline-block; width: 90px; height: 90px; margin-right: 22px; border-radius: 50%;
+  background: #233240; border: 3px solid #233240; vertical-align: top; }
+.mbtn.focused { background: #1565c0; border-color: #4fc3f7; }
+.mbtn i { position: absolute; top: 25px; }
+.mbtn .bar { width: 7px; height: 40px; background: #ffffff; }
+.mbtn .tri { width: 0; height: 0; border-top: 20px solid transparent; border-bottom: 20px solid transparent; }
+.mprev .bar { left: 26px; }
+.mprev .tri { left: 34px; border-right: 28px solid #ffffff; }
+.mnext .tri { left: 28px; border-left: 28px solid #ffffff; }
+.mnext .bar { left: 56px; }
+.mplay .bar { left: 32px; }
+.mplay .bar + .bar { left: 50px; }
+.mplay .tri { left: 34px; border-left: 30px solid #ffffff; display: none; }
+.mplay.paused .bar { display: none; }
+.mplay.paused .tri { display: block; }
+
+/* player: skip intro and next episode */
+#skipBtn { position: fixed; right: 70px; bottom: 150px; z-index: 6; padding: 18px 34px; font-size: 26px; color: #ffffff;
+  background: #1565c0; border: 3px solid #4fc3f7; border-radius: 6px; }
+#skipBtn.hidden, #upNext.hidden { display: none; }
+#upNext { position: fixed; right: 70px; bottom: 150px; z-index: 6; width: 760px; height: 196px; padding: 22px;
+  background: rgba(10, 14, 18, 0.92); border: 1px solid #3a4a58; border-radius: 6px; }
+#unimg { position: absolute; left: 22px; top: 22px; width: 300px; height: 169px; background: #222222; overflow: hidden; }
+#unimg img { width: 300px; height: 169px; }
+#uninfo { margin-left: 324px; }
+#unlabel { font-size: 19px; color: #9fb3c2; }
+#untitle { font-size: 25px; line-height: 31px; color: #ffffff; margin-top: 4px; max-height: 62px; overflow: hidden; }
+#uncount { font-size: 19px; color: #ffcc80; margin-top: 6px; }
+#unbtns .btn { min-width: 0; padding: 10px 20px; margin: 14px 12px 0 0; font-size: 21px; }

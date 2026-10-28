@@ -40,7 +40,7 @@
     } catch (e) {}
     return id || 'jflite-tv';
   }());
-  var VERSION = '0.15.0';
+  var VERSION = '0.16.0';
   var AUTH = 'MediaBrowser Client="' + CLIENT + '", Device="' + DEVICE +
              '", DeviceId="' + DEVICEID + '", Version="' + VERSION + '"';
   var REQUEST_TIMEOUT = 20000;
@@ -91,6 +91,8 @@
   var seekImg = document.getElementById('seekImg');
   var seekTime = document.getElementById('seekTime');
   var loadingSpinner = document.getElementById('loadingSpinner');
+  var skipBtn = document.getElementById('skipBtn');
+  var upNextEl = document.getElementById('upNext');
 
   var state = {
     token: null,
@@ -159,6 +161,15 @@
     mediaSourceId: '',
     sourceChoice: {},  /* item id -> chosen media source (version) */
     startMs: 0,
+    playUrl: '',
+    segments: [],       /* intro / outro etc. of the playing item (ms) */
+    skipSeg: null,      /* segment whose skip button is showing */
+    upNext: null,       /* 'next episode' overlay near the end */
+    lastGoodPos: 0,     /* last position seen playing, to resume after a broken stream */
+    recoverTries: 0,
+    recoverAt: 0,
+    pausedAt: 0,
+    bufferingSince: 0,
     reported: false,
     lastReport: 0,
     offsetCheckUntil: 0,
@@ -3270,6 +3281,15 @@
       state.startMs = startMs;
       state.playerOffset = 0;
       state.playMethod = 'DirectPlay';
+      state.lastGoodPos = startMs;
+      state.recoverTries = 0;
+      state.recoverAt = 0;
+      state.pausedAt = 0;
+      hideSkip();
+      hideUpNext();
+      state.upNext = state.autoNext && item.Type === 'Episode' && item.SeriesId ?
+        { itemId: item.Id, next: undefined, loading: false, shown: false, cancelled: false, focus: 0, deadline: 0 } : null;
+      loadSegments(item);
       state.reported = false;
       state.triedFallback = false;
       state.fallbackPending = false;
@@ -3550,15 +3570,27 @@
       state.trickplayPreloadAt = cur;
       preloadTrickplayAround(cur, 2);
     }
+    updateSkip(cur);
     if (state.seekTarget !== null) {
       phint.textContent = T('Spule zu {0} ...', fmtTime(state.seekTarget));
     } else {
       var it = state.playerItem;
-      phint.textContent = [state.playerPaused ? T('OK: Weiter') : T('OK: Pause'), T('◀ ▶: Spulen')]
+      phint.textContent = [state.skipSeg ? T('OK: Überspringen') : state.playerPaused ? T('OK: Weiter') : T('OK: Pause'), T('◀ ▶: Spulen')]
         .concat(it && it.Type === 'Episode' && it.SeriesId ? [T('CH ▲ ▼: Folge')] : [])
         .concat([T('Blau: Optionen'), T('Zurück: Stopp')]).join('  ·  ');
     }
     if (st === 'PLAYING' && now() - state.lastReport > 10000) reportProgress('TimeUpdate');
+    /* paused: keep the session (and a transcode) alive on the server */
+    if (st === 'PAUSED' && now() - state.lastReport > 30000) reportProgress('TimeUpdate');
+    if (st === 'PLAYING' && state.seekTarget === null && state.prepared) {
+      state.lastGoodPos = cur;
+      if (state.recoverTries && cur > state.recoverAt + 60000) state.recoverTries = 0;
+    }
+    if (state.bufferingSince && now() - state.bufferingSince > 30000) {
+      state.bufferingSince = 0;
+      recoverPlayback(state.playToken);
+    }
+    updateUpNext(cur, st);
   }
 
   function stopUiTimer() {
@@ -3582,6 +3614,14 @@
     var st = '';
     try { st = p.getState(); } catch (e) {}
     var pause = mode ? mode === 'pause' : st === 'PLAYING';
+    if (!pause && st === 'PAUSED' && state.pausedAt && now() - state.pausedAt > LONG_PAUSE) {
+      /* the server or a proxy has most likely closed the idle connection by now */
+      state.pausedAt = 0;
+      reloadAt(curPos());
+      reportProgress('Unpause');
+      return;
+    }
+    state.pausedAt = pause ? now() : 0;
     try {
       if (pause && st === 'PLAYING') p.pause();
       else if (!pause && st === 'PAUSED') p.play();
@@ -4109,6 +4149,7 @@
     var t = state.seekTarget;
     state.seekTarget = null;
     if (t === null) return;
+    state.lastGoodPos = t;
     if (state.seekPreviewTimer) clearTimeout(state.seekPreviewTimer);
     state.seekPreviewTimer = setTimeout(hideSeekPreview, 1200);
     if (state.playMethod === 'Transcode') {
@@ -4209,8 +4250,19 @@
   function onPlaybackEnded(token) {
     if (token !== state.playToken || state.stopping) return;
     var item = state.playerItem;
-    var endPos = curDuration() || curPos();
-    if (!state.autoNext || !item || item.Type !== 'Episode' || !item.SeriesId) {
+    var dur = curDuration();
+    var reached = Math.max(curPos(), state.lastGoodPos);
+    if (dur > 0 && reached < dur - 90000 && reached < dur * 0.92) {
+      /* the stream broke off early (server closed it, network): not the end of the episode */
+      if (!recoverPlayback(token)) {
+        showToast(T('Wiedergabe unterbrochen'));
+        stopPlayback(reached);
+      }
+      return;
+    }
+    var endPos = dur || curPos();
+    var u = state.upNext;
+    if (!state.autoNext || !item || item.Type !== 'Episode' || !item.SeriesId || (u && u.cancelled)) {
       stopPlayback(endPos);
       return;
     }
@@ -4219,12 +4271,231 @@
     reportStopped(endPos);
     stopEncoding();
     state.homeDirty = true;
+    hideUpNext();
     findNextEpisode(item, function (next) {
       if (token !== state.playToken || state.stopping) return;
       if (!next) { stopPlayback(); return; }
       showToast(T('Nächste Folge: {0}', (episodeCode(next) ? episodeCode(next) + ' ' : '') + (next.Name || '')));
       playItem(next, { startMs: 0, chain: true });
     });
+  }
+
+  /* ---------- broken streams ---------- */
+
+  var LONG_PAUSE = 60000;  /* after this, resuming reopens the stream */
+
+  /* open the stream again at pos (same play method) */
+  function reloadAt(pos) {
+    state.playToken++;
+    clearPrepareTimer();
+    stopUiTimer();
+    state.prepared = false;
+    state.startMs = pos;
+    state.lastGoodPos = pos;
+    showPlayerLoading();
+    if (state.playMethod === 'Transcode') {
+      stopEncoding();
+      startTranscode(pos);
+    } else {
+      startAvplay(state.playUrl);
+    }
+  }
+
+  /* the stream broke off while playing (server closed it, network): continue
+     where it stopped instead of giving up or jumping to the next episode */
+  function recoverPlayback(token) {
+    if (token !== state.playToken || state.stopping || state.fallbackPending) return false;
+    if (!state.prepared || state.lastGoodPos <= 0 || state.recoverTries >= 3) return false;
+    state.recoverTries++;
+    state.recoverAt = state.lastGoodPos;
+    showToast(T('Verbindung unterbrochen, setze fort ...'));
+    reloadAt(state.lastGoodPos);
+    return true;
+  }
+
+  /* ---------- media segments: skip intro, next episode ---------- */
+
+  function skipLabel(type) {
+    if (type === 'Intro') return T('Intro überspringen');
+    if (type === 'Recap') return T('Rückblick überspringen');
+    if (type === 'Preview') return T('Vorschau überspringen');
+    if (type === 'Commercial') return T('Werbung überspringen');
+    return '';
+  }
+
+  /* Jellyfin 10.10+: /MediaSegments (filled by e.g. the Intro Skipper plugin
+     or chapter names); older servers with Intro Skipper: its own endpoint */
+  function loadSegments(item) {
+    state.segments = [];
+    var req = state.playReq;
+    if (!item || (item.Type !== 'Episode' && item.Type !== 'Movie')) return;
+    getJson('/MediaSegments/' + encodeURIComponent(item.Id), function (err, data) {
+      if (req !== state.playReq) return;
+      if (!err && data && data.Items) {
+        var list = [];
+        for (var i = 0; i < data.Items.length; i++) {
+          var sg = data.Items[i];
+          var a = Math.round((sg.StartTicks || 0) / TICKS);
+          var b = Math.round((sg.EndTicks || 0) / TICKS);
+          if (b > a) list.push({ type: String(sg.Type), start: a, end: b });
+        }
+        state.segments = list;
+        return;
+      }
+      if (err !== 404 || item.Type !== 'Episode') return;
+      getJson('/Episode/' + encodeURIComponent(item.Id) + '/IntroSkipperSegments', function (err2, d) {
+        if (req !== state.playReq || err2 || !d) return;
+        var old = [];
+        if (d.Introduction && d.Introduction.Valid) {
+          old.push({ type: 'Intro', start: d.Introduction.IntroStart * 1000, end: d.Introduction.IntroEnd * 1000 });
+        }
+        if (d.Credits && d.Credits.Valid) {
+          old.push({ type: 'Outro', start: d.Credits.IntroStart * 1000, end: d.Credits.IntroEnd * 1000 });
+        }
+        state.segments = old;
+      });
+    });
+  }
+
+  function hideSkip() {
+    state.skipSeg = null;
+    skipBtn.className = 'hidden';
+  }
+
+  function updateSkip(cur) {
+    var seg = null;
+    if (state.prepared && state.seekTarget === null && !(state.upNext && state.upNext.shown) && !menuOpen()) {
+      for (var i = 0; i < state.segments.length; i++) {
+        var sg = state.segments[i];
+        if (skipLabel(sg.type) && cur >= sg.start && cur < sg.end - 2000) { seg = sg; break; }
+      }
+    }
+    if (!seg) { if (state.skipSeg) hideSkip(); return; }
+    if (seg !== state.skipSeg) skipBtn.textContent = skipLabel(seg.type);
+    state.skipSeg = seg;
+    skipBtn.className = '';
+  }
+
+  function skipSegment() {
+    var seg = state.skipSeg;
+    if (!seg) return;
+    hideSkip();
+    var dur = curDuration();
+    if (dur > 0 && seg.end >= dur - 1500) { onPlaybackEnded(state.playToken); return; }
+    seekTo(seg.end);
+  }
+
+  /* when the overlay appears: at the credits (outro segment), else 25 s before the end */
+  function upNextAt(dur) {
+    for (var i = 0; i < state.segments.length; i++) {
+      var sg = state.segments[i];
+      if (sg.type === 'Outro' && sg.start > dur * 0.5 && sg.start < dur - 5000) return sg.start;
+    }
+    return dur - 25000;
+  }
+
+  function updateUpNext(cur, st) {
+    var u = state.upNext;
+    var item = state.playerItem;
+    if (!u || !item || u.itemId !== item.Id || u.cancelled || state.seekTarget !== null || !state.prepared) return;
+    var dur = curDuration();
+    if (!(dur > 60000)) return;
+    var at = upNextAt(dur);
+    if (cur < at - 30000) { if (u.shown) hideUpNext(); return; }
+    if (u.next === undefined) {
+      /* look it up a little early so the picture is there in time */
+      if (!u.loading) {
+        u.loading = true;
+        findNextEpisode(item, function (next) {
+          u.loading = false;
+          u.next = next || null;
+        });
+      }
+      return;
+    }
+    if (!u.next) return;
+    if (cur < at - 1000) { if (u.shown) hideUpNext(); return; }
+    if (!u.shown) {
+      u.shown = true;
+      u.focus = 0;
+      u.deadline = Math.min(dur, Math.max(cur, at) + 15000);
+      renderUpNext();
+      hideSkip();
+    }
+    var left = Math.max(0, Math.ceil((u.deadline - cur) / 1000));
+    var cnt = $('uncount');
+    if (cnt) cnt.textContent = T('Startet in {0} s', left);
+    /* credits: start the next episode after the countdown; otherwise the end of the stream does it */
+    if (st === 'PLAYING' && cur >= u.deadline && u.deadline < dur - 1000) playUpNext();
+  }
+
+  function renderUpNext() {
+    var u = state.upNext;
+    var n = u.next;
+    var se = episodeCode(n);
+    var img = n.ImageTags && n.ImageTags.Primary ? imageUrl(n.Id, 'Primary', n.ImageTags.Primary, 180) : '';
+    upNextEl.innerHTML =
+      '<div id="unimg">' + (img ? '<img src="' + esc(img) + '" onerror="this.style.display=\'none\'">' : '') + '</div>' +
+      '<div id="uninfo"><div id="unlabel">' + esc(T('Nächste Folge')) + '</div>' +
+      '<div id="untitle">' + esc((se ? se + '  ·  ' : '') + (n.Name || '')) + '</div>' +
+      '<div id="uncount"></div>' +
+      '<div id="unbtns"><span class="btn primary">' + esc(T('Jetzt abspielen')) + '</span>' +
+      '<span class="btn">' + esc(T('Abbrechen')) + '</span></div></div>';
+    upNextEl.className = '';
+    upNextFocus();
+  }
+
+  function upNextFocus() {
+    var b = upNextEl.querySelectorAll('.btn');
+    for (var i = 0; i < b.length; i++) b[i].className = 'btn' + (i === 0 ? ' primary' : '') + (i === state.upNext.focus ? ' focused' : '');
+  }
+
+  function hideUpNext() {
+    if (state.upNext) state.upNext.shown = false;
+    upNextEl.className = 'hidden';
+    upNextEl.innerHTML = '';
+  }
+
+  /* the episode counts as watched: report it at its end */
+  function playUpNext() {
+    var u = state.upNext;
+    if (!u || !u.next) return;
+    var next = u.next;
+    var endPos = curDuration() || curPos();
+    hideUpNext();
+    state.upNext = null;
+    state.playToken++;
+    try { webapis.avplay.pause(); } catch (e) {}
+    stopUiTimer();
+    showPlayerLoading();
+    reportStopped(endPos);
+    stopEncoding();
+    state.homeDirty = true;
+    playItem(next, { startMs: 0, chain: true });
+  }
+
+  /* returns true when the key was used by the overlay */
+  function handleUpNextKey(e, k) {
+    var u = state.upNext;
+    if (k === K_LEFT || k === K_RIGHT) {
+      e.preventDefault();
+      u.focus = k === K_LEFT ? 0 : 1;
+      upNextFocus();
+      return true;
+    }
+    if (k === K_ENTER) {
+      e.preventDefault();
+      if (u.focus === 0) playUpNext();
+      else { u.cancelled = true; hideUpNext(); }
+      return true;
+    }
+    if (isBackKey(k)) {
+      e.preventDefault();
+      u.cancelled = true;
+      hideUpNext();
+      return true;
+    }
+    return false;
   }
 
   /* CH ▲ / CH ▼ in the player: next (dir 1) or previous (dir -1) episode */
@@ -4281,6 +4552,8 @@
       return;
     }
     var token = ++state.playToken;
+    state.playUrl = url;
+    state.bufferingSince = 0;
     clearPrepareTimer();
     stopUiTimer();
     if (state.playerUiHideTimer) { clearTimeout(state.playerUiHideTimer); state.playerUiHideTimer = null; }
@@ -4317,14 +4590,17 @@
           },
           onbufferingstart: function () {
             if (token !== state.playToken || state.stopping) return;
+            state.bufferingSince = now();
             showPlayerLoading();
           },
           onbufferingcomplete: function () {
             if (token !== state.playToken || state.stopping) return;
+            state.bufferingSince = 0;
             hidePlayerLoading();
           },
           onerror: function (e) {
             if (token !== state.playToken || state.stopping) return;
+            if (recoverPlayback(token)) return;
             if (!state.triedFallback) {
               showToast(T('Direkte Wiedergabe fehlgeschlagen, versuche Transcoding ...'));
               scheduleFallback(token);
@@ -4417,6 +4693,10 @@
     state.seekCount = 0;
     hideSeekPreview();
     hidePlayerLoading();
+    hideSkip();
+    hideUpNext();
+    state.upNext = null;
+    state.segments = [];
     closeMenu();
     stopSubtitles();
     subtitleEl.className = '';
@@ -4496,13 +4776,17 @@
 
   function handlePlayerKey(e, k) {
     if (menuOpen()) { handleMenuKey(e, k); return; }
+    if (state.upNext && state.upNext.shown && handleUpNextKey(e, k)) return;
     if (isBackKey(k) || k === K_STOP || k === 178) {
       e.preventDefault();
       stopPlayback();
       return;
     }
     showPlayerUi();
-    if (k === K_ENTER || k === K_PLAYPAUSE || k === 179) {
+    if (k === K_ENTER && state.skipSeg) {
+      e.preventDefault();
+      skipSegment();
+    } else if (k === K_ENTER || k === K_PLAYPAUSE || k === 179) {
       e.preventDefault();
       togglePause();
     } else if (k === K_PLAY) {
@@ -4938,7 +5222,7 @@
     state.music = {
       queue: queue, index: shuffle ? 0 : index, token: 0, prepared: false, paused: false,
       method: 'DirectPlay', offset: 0, sessionId: '', reported: false, lastReport: 0,
-      triedFallback: false, timer: null, prepareTimer: null,
+      triedFallback: false, timer: null, prepareTimer: null, ctrl: 1,
       returnSnap: state.view === 'music' && state.music ? state.music.returnSnap : snapshot()
     };
     if (state.overlay) closeOverlay();
@@ -5128,7 +5412,10 @@
       '<div id="martist">' + esc(trackArtists(t)) + '</div>' +
       '<div id="malbum">' + esc(t.Album || '') + '</div>' +
       '<div id="mprogress"><div id="mfill"></div></div>' +
-      '<div id="mtime"><span id="mcur"></span><span id="mstate"></span><span id="mpos"></span></div>';
+      '<div id="mtime"><span id="mcur"></span><span id="mstate"></span><span id="mpos"></span></div>' +
+      '<div id="mctrl"><span class="mbtn mprev"><i class="bar"></i><i class="tri"></i></span>' +
+      '<span class="mbtn mplay"><i class="bar"></i><i class="bar"></i><i class="tri"></i></span>' +
+      '<span class="mbtn mnext"><i class="tri"></i><i class="bar"></i></span></div>';
     var next = m.queue.slice(m.index + 1, m.index + 6);
     if (next.length) {
       html += '<div id="mqueue"><div class="mqtitle">' + esc(T('Als Nächstes')) + '</div>';
@@ -5141,6 +5428,13 @@
     html += '</div><div id="mhint"></div>';
     musicEl.innerHTML = html;
     updateMusicUi();
+    /* at 1280x720 not all five fit: drop rows that would run into the hint line */
+    var hint = $('mhint');
+    var rows = musicEl.querySelectorAll('.mqrow');
+    for (var r = rows.length - 1; r >= 0 && rows[r].getBoundingClientRect().bottom > hint.getBoundingClientRect().top - 12; r--) {
+      rows[r].parentNode.removeChild(rows[r]);
+    }
+    if (r < 0 && $('mqueue')) $('mqueue').parentNode.removeChild($('mqueue'));
   }
 
   function updateMusicUi() {
@@ -5152,18 +5446,32 @@
     $('mstate').textContent = m.paused ? T('Pausiert') : '';
     $('mpos').textContent = T('Titel {0} von {1}', m.index + 1, m.queue.length);
     $('mfill').style.width = (dur > 0 ? Math.min(100, pos / dur * 100) : 0) + '%';
-    $('mhint').textContent = [m.paused ? T('OK: Weiter') : T('OK: Pause'), T('◀ ▶: Titel'),
+    var btns = musicEl.querySelectorAll('.mbtn');
+    var names = ['mprev', 'mplay' + (m.paused ? ' paused' : ''), 'mnext'];
+    for (var i = 0; i < btns.length; i++) btns[i].className = 'mbtn ' + names[i] + (i === m.ctrl ? ' focused' : '');
+    $('mhint').textContent = [T('◀ ▶ OK: Steuerung'), T('CH ▲ ▼: Titel'),
       T('◀◀ ▶▶: Spulen'), T('Zurück: Stopp')].join('  ·  ');
   }
 
   function handleMusicKey(e, k) {
     e.preventDefault();
     if (isBackKey(k) || k === K_STOP || k === 178) stopMusic();
-    else if (k === K_ENTER || k === K_PLAYPAUSE || k === 179) musicTogglePause();
+    else if (k === K_ENTER) {
+      if (now() - state.lastActivate < 350) return;  /* key repeat */
+      state.lastActivate = now();
+      if (state.music.ctrl === 0) musicPrev();
+      else if (state.music.ctrl === 2) musicNext(false);
+      else musicTogglePause();
+    }
+    else if (k === K_LEFT || k === K_RIGHT) {
+      state.music.ctrl = Math.max(0, Math.min(2, state.music.ctrl + (k === K_LEFT ? -1 : 1)));
+      updateMusicUi();
+    }
+    else if (k === K_PLAYPAUSE || k === 179) musicTogglePause();
     else if (k === K_PLAY) musicTogglePause('play');
     else if (k === K_PAUSE) musicTogglePause('pause');
-    else if (k === K_RIGHT || k === K_CH_UP) musicNext(false);
-    else if (k === K_LEFT || k === K_CH_DOWN) musicPrev();
+    else if (k === K_CH_UP) musicNext(false);
+    else if (k === K_CH_DOWN) musicPrev();
     else if (k === K_FF) musicSeek(musicPos() + 10000);
     else if (k === K_RW) musicSeek(musicPos() - 10000);
     else if (k >= 48 && k <= 57) musicSeek(musicDuration() * (k - 48) / 10);
