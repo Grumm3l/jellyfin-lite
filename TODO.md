@@ -10,5 +10,3 @@
   first version is always used at the moment.
 - **Persons / actors**: show the cast on the details page and open a person
   to see their other movies and series in the library.
-- **English user interface**: the interface is in German only; move the
-  texts into a translation table and add English.

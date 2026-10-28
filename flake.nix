@@ -16,7 +16,7 @@
 
       # files of the app package
       appFiles = [
-        "app.js" "config.xml" "icon.png" "index.html" "logo.png" "style.css"
+        "app.js" "config.xml" "i18n.js" "icon.png" "index.html" "logo.png" "style.css"
         "native/dist/tlsproxy_arm.nmf" "native/dist/tlsproxy_arm.nexe"
         "LICENSE" "THIRD_PARTY.md"
       ] ++ map (f: "LICENSES/" + f) (builtins.attrNames (builtins.readDir ./LICENSES));

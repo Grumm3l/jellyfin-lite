@@ -4,6 +4,18 @@
 (function () {
   'use strict';
 
+  /* ---------- languages ----------
+     The texts are written in German; T() returns them in the TV's language
+     (translations in i18n.js). {0}, {1} ... are filled with the further
+     arguments. */
+  var LANG = 'de';
+  var TR = null;
+  function T(text) {
+    var s = (TR && TR[text]) || text;
+    for (var i = 1; i < arguments.length; i++) s = s.split('{' + (i - 1) + '}').join(String(arguments[i]));
+    return s;
+  }
+
   /* The TV's browser only speaks TLS 1.0. The bundled NaCl module
      (native/dist/tlsproxy_arm.nexe) does TLS 1.2 and serves the server on
      http://127.0.0.1:<port>. Only plain http:// servers (home network) also
@@ -28,7 +40,7 @@
     } catch (e) {}
     return id || 'jflite-tv';
   }());
-  var VERSION = '0.11.0';
+  var VERSION = '0.12.0';
   var AUTH = 'MediaBrowser Client="' + CLIENT + '", Device="' + DEVICE +
              '", DeviceId="' + DEVICEID + '", Version="' + VERSION + '"';
   var REQUEST_TIMEOUT = 20000;
@@ -203,15 +215,15 @@
 
   function fmtRuntime(ticks) {
     var min = Math.round(ticks / TICKS / 60000);
-    if (min < 60) return min + ' Min.';
-    return Math.floor(min / 60) + ' Std. ' + (min % 60) + ' Min.';
+    if (min < 60) return T('{0} Min.', min);
+    return T('{0} Std. {1} Min.', Math.floor(min / 60), min % 60);
   }
 
   function errText(err) {
-    if (err === 0) return 'Server nicht erreichbar';
-    if (err === 'timeout') return 'Zeitüberschreitung';
-    if (err === 'json') return 'ungültige Antwort';
-    return 'Fehler ' + err;
+    if (err === 0) return T('Server nicht erreichbar');
+    if (err === 'timeout') return T('Zeitüberschreitung');
+    if (err === 'json') return T('ungültige Antwort');
+    return T('Fehler {0}', err);
   }
 
   function setFocused(el, on) {
@@ -256,7 +268,7 @@
     var t = now();
     if (t - state.exitArmedAt < 2500) { exitApp(); return; }
     state.exitArmedAt = t;
-    showToast('Zum Beenden erneut Zurück drücken');
+    showToast(T('Zum Beenden erneut Zurück drücken'));
   }
 
   /* ---------- persistence ---------- */
@@ -353,7 +365,8 @@
     var html = '';
     var i;
     for (i = 0; parts && i < parts.length; i++) {
-      html += '<span class="hint">' + HINT_KEYS[parts[i][0]] + ' ' + parts[i][1] + '</span>';
+      var key = parts[i][0] === 'back' ? '<b class="key">' + esc(T('ZURÜCK')) + '</b>' : HINT_KEYS[parts[i][0]];
+      html += '<span class="hint">' + key + ' ' + parts[i][1] + '</span>';
     }
     hintbar.innerHTML = html;
     hintbar.className = html ? '' : 'hidden';
@@ -448,7 +461,7 @@
     if (state.view === 'player') stopPlayback();
     clearAuth();
     state.stack = [];
-    showLogin('Sitzung abgelaufen. Bitte neu anmelden.');
+    showLogin(T('Sitzung abgelaufen. Bitte neu anmelden.'));
   }
 
   function api(method, path, body, cb) {
@@ -516,7 +529,7 @@
   /* ---------- simple screens ---------- */
 
   function showLoading(msg) {
-    content.innerHTML = '<div class="loading">' + esc(msg || 'Lade ...') + '</div>';
+    content.innerHTML = '<div class="loading">' + esc(msg || T('Lade ...')) + '</div>';
   }
 
   function showError(msg) {
@@ -533,7 +546,7 @@
     content.innerHTML = '<div class="error">' + esc(msg) + '</div>' +
       '<div class="center"><div class="btn primary focused" id="retrybtn">Erneut versuchen</div></div>';
     $('retrybtn').onclick = fn;
-    setHints([['ok', 'Erneut versuchen'], ['blue', 'Einstellungen'], ['back', 'Beenden']]);
+    setHints([['ok', T('Erneut versuchen')], ['blue', T('Einstellungen')], ['back', T('Beenden')]]);
   }
 
   /* ---------- item helpers ---------- */
@@ -551,7 +564,7 @@
 
   function metaText(item, withType) {
     var parts = [];
-    if (withType && TYPE_NAMES[item.Type]) parts.push(TYPE_NAMES[item.Type]);
+    if (withType && TYPE_NAMES[item.Type]) parts.push(T(TYPE_NAMES[item.Type]));
     if (item.Type === 'Episode') {
       if (withType && item.SeriesName) parts.push(item.SeriesName);
       var se = episodeCode(item);
@@ -560,7 +573,7 @@
       parts.push(String(item.ProductionYear));
     }
     var minutes = item.RunTimeTicks ? Math.round(item.RunTimeTicks / TICKS / 60000) : 0;
-    if (minutes > 0 && item.Type !== 'Series' && item.Type !== 'Book') parts.push(minutes + ' Min.');
+    if (minutes > 0 && item.Type !== 'Series' && item.Type !== 'Book') parts.push(T('{0} Min.', minutes));
     return parts.join('  ·  ');
   }
 
@@ -760,7 +773,7 @@
     setChrome(true);
     setTopnav(false);
     setCrumb('');
-    setHints([['ok', 'Auswählen'], ['back', back ? 'Zurück' : 'Beenden']]);
+    setHints([['ok', T('Auswählen')], ['back', back ? T('Zurück') : T('Beenden')]]);
     content.scrollTop = 0;
     content.innerHTML = '';
     var box = el('div', 'loginbox');
@@ -797,16 +810,16 @@
   function showServerSetup(message, values) {
     var saved = savedServer();
     var v = values || { url: saved.url || '', seerr: saved.seerr || '' };
-    var box = loginShell('Mit Server verbinden',
-      'z. B. jellyfin.example.com oder http://192.168.1.10:8096',
+    var box = loginShell(T('Mit Server verbinden'),
+      T('z. B. jellyfin.example.com oder http://192.168.1.10:8096'),
       message, server.jf ? function () { showLogin(); } : null);
     box.className = 'loginbox wide';
-    var url = loginField(box, 'srvurl', 'Server-Adresse', v.url);
-    var seerrField = loginField(box, 'srvseerr', 'Seerr (optional, für Anfragen)', v.seerr);
+    var url = loginField(box, 'srvurl', T('Server-Adresse'), v.url);
+    var seerrField = loginField(box, 'srvseerr', T('Seerr (optional, für Anfragen)'), v.seerr);
     url.jfDone = function () { focusLoginElement(ok); };
     var btns = el('div', 'loginbtns');
-    var ok = loginButton(btns, 'Verbinden', 'primary', saveServerSetup);
-    var cancel = server.jf ? loginButton(btns, 'Abbrechen', '', function () { showLogin(); }) : null;
+    var ok = loginButton(btns, T('Verbinden'), 'primary', saveServerSetup);
+    var cancel = server.jf ? loginButton(btns, T('Abbrechen'), '', function () { showLogin(); }) : null;
     box.appendChild(btns);
     setLoginRows([[url], [seerrField], cancel ? [ok, cancel] : [ok]], 0, 0);
   }
@@ -815,8 +828,8 @@
     var values = { url: $('srvurl').value, seerr: $('srvseerr').value };
     var a = parseAddress(values.url);
     var s = parseAddress(values.seerr);
-    if (!a) { showServerSetup('Bitte eine gültige Server-Adresse eingeben.', values); return; }
-    if (values.seerr.replace(/\s/g, '') && !s) { showServerSetup('Die Seerr-Adresse ist ungültig.', values); return; }
+    if (!a) { showServerSetup(T('Bitte eine gültige Server-Adresse eingeben.'), values); return; }
+    if (values.seerr.replace(/\s/g, '') && !s) { showServerSetup(T('Die Seerr-Adresse ist ungültig.'), values); return; }
     var old = savedServer();
     var oldJf = parseAddress(old.url);
     var oldSeerr = parseAddress(old.seerr);
@@ -832,7 +845,7 @@
       localStorage.setItem('jf_server', JSON.stringify({ url: a.url, seerr: s ? s.url : '' }));
     } catch (e2) {}
     /* the NaCl module connects at start-up: restart the app */
-    showLoading('Verbinde mit ' + a.host + ' ...');
+    showLoading(T('Verbinde mit {0} ...', a.host));
     setTimeout(function () { window.location.reload(); }, 300);
   }
 
@@ -840,7 +853,7 @@
   function showLogin(message) {
     if (!server.jf) { showServerSetup(message); return; }
     var users = state.publicUsers || [];
-    var box = loginShell(users.length ? 'Wer schaut?' : 'Anmelden', serverLine(), message, null);
+    var box = loginShell(users.length ? T('Wer schaut?') : T('Anmelden'), serverLine(), message, null);
     state.loginScreen = 'main';
     var rows = [];
     var userField = null;
@@ -860,21 +873,21 @@
       }
       box.appendChild(wrap);
     } else {
-      userField = loginField(box, 'luser', 'Benutzername', '');
-      passField = loginField(box, 'lpass', 'Passwort', '', 'password');
+      userField = loginField(box, 'luser', T('Benutzername'), '');
+      passField = loginField(box, 'lpass', T('Passwort'), '', 'password');
       userField.jfDone = function () { focusLoginElement(passField); openLoginKeyboard(passField); };
       passField.jfDone = function () { login(userField.value, passField.value, false, showLogin); };
       rows.push([userField], [passField]);
     }
     var btns = el('div', 'loginbtns');
     var b = [];
-    if (users.length) b.push(loginButton(btns, 'Anderer Benutzer', '', function () { showManualLogin(); }));
-    else b.push(loginButton(btns, 'Anmelden', 'primary', function () { login(userField.value, passField.value, false, showLogin); }));
-    b.push(loginButton(btns, 'Quick Connect', '', startQuickConnect));
-    b.push(loginButton(btns, 'Server ändern', '', function () { showServerSetup(); }));
+    if (users.length) b.push(loginButton(btns, T('Anderer Benutzer'), '', function () { showManualLogin(); }));
+    else b.push(loginButton(btns, T('Anmelden'), 'primary', function () { login(userField.value, passField.value, false, showLogin); }));
+    b.push(loginButton(btns, T('Quick Connect'), '', startQuickConnect));
+    b.push(loginButton(btns, T('Server ändern'), '', function () { showServerSetup(); }));
     box.appendChild(btns);
     rows.push(b);
-    box.appendChild(el('div', 'loginstatus', 'Verbindung: ' + proxy.info + '  ·  Jellyfin Lite ' + VERSION));
+    box.appendChild(el('div', 'loginstatus', T('Verbindung: {0}', proxy.info) + '  ·  Jellyfin Lite ' + VERSION));
     setLoginRows(rows, 0, 0);
     loadPublicUsers();
   }
@@ -905,29 +918,29 @@
   function showPasswordLogin(u, message) {
     var box = loginShell(u.Name || '', serverLine(), message, function () { showLogin(); });
     box.insertBefore(makeAvatar(u, 'big'), box.firstChild);
-    var pass = loginField(box, 'lpass', 'Passwort', '', 'password');
+    var pass = loginField(box, 'lpass', T('Passwort'), '', 'password');
     var btns = el('div', 'loginbtns');
     function go() { login(u.Name || '', pass.value, false, function (msg) { showPasswordLogin(u, msg); }); }
     pass.jfDone = go;
-    var ok = loginButton(btns, 'Anmelden', 'primary', go);
-    var back = loginButton(btns, 'Zurück', '', function () { showLogin(); });
+    var ok = loginButton(btns, T('Anmelden'), 'primary', go);
+    var back = loginButton(btns, T('Zurück'), '', function () { showLogin(); });
     box.appendChild(btns);
     setLoginRows([[pass], [ok, back]], 0, 0);
     openLoginKeyboard(pass);
   }
 
   function showManualLogin(message, prefill) {
-    var box = loginShell('Anmelden', serverLine(), message, function () { showLogin(); });
-    var user = loginField(box, 'luser', 'Benutzername', prefill || '');
-    var pass = loginField(box, 'lpass', 'Passwort', '', 'password');
+    var box = loginShell(T('Anmelden'), serverLine(), message, function () { showLogin(); });
+    var user = loginField(box, 'luser', T('Benutzername'), prefill || '');
+    var pass = loginField(box, 'lpass', T('Passwort'), '', 'password');
     var btns = el('div', 'loginbtns');
     function go() {
       login(user.value, pass.value, false, function (msg) { showManualLogin(msg, user.value); });
     }
     user.jfDone = function () { focusLoginElement(pass); openLoginKeyboard(pass); };
     pass.jfDone = go;
-    var ok = loginButton(btns, 'Anmelden', 'primary', go);
-    var back = loginButton(btns, 'Zurück', '', function () { showLogin(); });
+    var ok = loginButton(btns, T('Anmelden'), 'primary', go);
+    var back = loginButton(btns, T('Zurück'), '', function () { showLogin(); });
     box.appendChild(btns);
     setLoginRows([[user], [pass], [ok, back]], prefill ? 1 : 0, 0);
   }
@@ -940,7 +953,7 @@
       if (err) {
         var msg = content.querySelector('.loginmsg');
         if (!msg && !(state.publicUsers && state.publicUsers.length)) {
-          msg = el('div', 'loginmsg', 'Server nicht erreichbar (' + errText(err) + '). Adresse prüfen mit „Server ändern“.');
+          msg = el('div', 'loginmsg', T('Server nicht erreichbar ({0}). Adresse prüfen mit „Server ändern“.', errText(err)));
           var sub = content.querySelector('.loginsub');
           if (sub && sub.parentNode) sub.parentNode.insertBefore(msg, sub.nextSibling);
         }
@@ -961,14 +974,14 @@
   function login(user, pass, allowEmptyPassword, onError) {
     var back = onError || showLogin;
     if (!user || (!pass && !allowEmptyPassword)) {
-      back('Bitte Benutzername und Passwort eingeben.');
+      back(T('Bitte Benutzername und Passwort eingeben.'));
       return;
     }
-    showLoading('Anmeldung ...');
+    showLoading(T('Anmeldung ...'));
     api('POST', '/Users/AuthenticateByName', { Username: user, Pw: pass }, function (err, txt) {
       if (err) {
-        back(err === 401 ? 'Benutzername oder Passwort falsch.' :
-          'Anmeldung fehlgeschlagen (' + errText(err) + ').');
+        back(err === 401 ? T('Benutzername oder Passwort falsch.') :
+          T('Anmeldung fehlgeschlagen ({0}).', errText(err)));
         return;
       }
       loginDone(txt);
@@ -977,7 +990,7 @@
 
   function loginDone(txt) {
     var r;
-    try { r = JSON.parse(txt); } catch (e) { showLogin('Ungültige Anmeldeantwort.'); return; }
+    try { r = JSON.parse(txt); } catch (e) { showLogin(T('Ungültige Anmeldeantwort.')); return; }
     state.token = r.AccessToken;
     state.userId = r.User ? r.User.Id : null;
     state.userName = r.User ? r.User.Name : null;
@@ -994,16 +1007,16 @@
   }
 
   function startQuickConnect() {
-    showLoading('Quick Connect wird vorbereitet ...');
+    showLoading(T('Quick Connect wird vorbereitet ...'));
     api('POST', '/QuickConnect/Initiate', null, function (err, txt) {
       if (err) {
         showLogin(err === 401 || err === 403 ?
-          'Quick Connect ist auf dem Server deaktiviert.' :
-          'Quick Connect ist nicht verf\u00fcgbar (' + errText(err) + ').');
+          T('Quick Connect ist auf dem Server deaktiviert.') :
+          T('Quick Connect ist nicht verf\u00fcgbar ({0}).', errText(err)));
         return;
       }
       var q;
-      try { q = JSON.parse(txt); } catch (e) { showLogin('Ung\u00fcltige Antwort.'); return; }
+      try { q = JSON.parse(txt); } catch (e) { showLogin(T('Ung\u00fcltige Antwort.')); return; }
       renderQuickConnect(q.Code);
       state.qcSecret = q.Secret;
       pollQuickConnect();
@@ -1011,12 +1024,11 @@
   }
 
   function renderQuickConnect(code) {
-    var box = loginShell('Quick Connect', 'Jellyfin auf Handy oder PC \u00f6ffnen \u2192 Benutzermen\u00fc \u2192 ' +
-      'Quick Connect \u2192 diesen Code eingeben:', null, function () { showLogin(); });
+    var box = loginShell(T('Quick Connect'), T('Jellyfin auf Handy oder PC \u00f6ffnen \u2192 Benutzermen\u00fc \u2192 Quick Connect \u2192 diesen Code eingeben:'), null, function () { showLogin(); });
     box.appendChild(el('div', 'code', code));
-    box.appendChild(el('div', 'loginsub', 'Warte auf Freigabe ...'));
+    box.appendChild(el('div', 'loginsub', T('Warte auf Freigabe ...')));
     var btns = el('div', 'loginbtns');
-    var cancel = loginButton(btns, 'Abbrechen', '', function () { showLogin(); });
+    var cancel = loginButton(btns, T('Abbrechen'), '', function () { showLogin(); });
     box.appendChild(btns);
     setLoginRows([[cancel]], 0, 0);
   }
@@ -1031,7 +1043,7 @@
         if (err) {
           if (err === 404 || err === 400) {
             state.qcSecret = null;
-            showLogin('Der Quick-Connect-Code ist abgelaufen.');
+            showLogin(T('Der Quick-Connect-Code ist abgelaufen.'));
           } else {
             pollQuickConnect();
           }
@@ -1050,7 +1062,7 @@
       state.qcSecret = null;
       if (state.qcTimer) { clearTimeout(state.qcTimer); state.qcTimer = null; }
       if (err) {
-        showLogin('Quick-Connect-Anmeldung fehlgeschlagen (' + errText(err) + ').');
+        showLogin(T('Quick-Connect-Anmeldung fehlgeschlagen ({0}).', errText(err)));
         return;
       }
       loginDone(txt);
@@ -1066,7 +1078,7 @@
     state.stack = [];
     state.homeRows = null;
     state.current = null;
-    showLogin('Abgemeldet.');
+    showLogin(T('Abgemeldet.'));
   }
 
   /* ---------- overlays: settings menu and search bar ---------- */
@@ -1106,12 +1118,12 @@
   /* settings: a drop-down under the profile instead of a page */
   function settingsItems() {
     var items = [
-      { label: 'Nächste Folge automatisch', value: state.autoNext ? 'Ein' : 'Aus', action: toggleAutoNext },
-      { label: 'Hintergrundbilder', value: state.backdrops ? 'Ein' : 'Aus', action: toggleBackdrops },
-      { label: 'Ruhige Darstellung', value: state.calmMode ? 'Ein' : 'Aus', action: toggleCalm }
+      { label: T('Nächste Folge automatisch'), value: state.autoNext ? T('Ein') : T('Aus'), action: toggleAutoNext },
+      { label: T('Hintergrundbilder'), value: state.backdrops ? T('Ein') : T('Aus'), action: toggleBackdrops },
+      { label: T('Ruhige Darstellung'), value: state.calmMode ? T('Ein') : T('Aus'), action: toggleCalm }
     ];
     if (state.token) {
-      items.push({ label: 'Abmelden', danger: true, action: function () { closeOverlay(); logout(); } });
+      items.push({ label: T('Abmelden'), danger: true, action: function () { closeOverlay(); logout(); } });
     }
     return items;
   }
@@ -1128,14 +1140,14 @@
   function renderSettingsMenu() {
     var items = settingsItems();
     if (state.menuFocus >= items.length) state.menuFocus = items.length - 1;
-    var html = '<div class="pmtitle">' + esc(state.token ? (state.userName || 'Profil') : 'Einstellungen') + '</div>';
+    var html = '<div class="pmtitle">' + esc(state.token ? (state.userName || T('Profil')) : T('Einstellungen')) + '</div>';
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       html += '<div class="pmrow' + (i === state.menuFocus ? ' focused' : '') + (it.danger ? ' danger' : '') + '">' +
         '<span class="pmlabel">' + esc(it.label) + '</span>' +
         (it.value !== undefined ? '<span class="pmvalue">' + esc(it.value) + '</span>' : '') + '</div>';
     }
-    html += '<div class="pmfoot">Verbindung: ' + esc(proxy.info) + '<br>Jellyfin Lite ' + esc(VERSION) +
+    html += '<div class="pmfoot">' + esc(T('Verbindung: {0}', proxy.info)) + '<br>Jellyfin Lite ' + esc(VERSION) +
       '  ·  ' + esc(server.jf ? server.jf.host : '') + '</div>';
     var m = $('settingsMenu');
     m.innerHTML = html;
@@ -1171,7 +1183,7 @@
     input.value = '';
     input.className = 'open';
     topbar.className = 'searching';
-    renderSearchPanel('Ab 2 Zeichen wird gesucht.');
+    renderSearchPanel(T('Ab 2 Zeichen wird gesucht.'));
     updateSearchBarFocus();
     openSearchKeyboard();
   }
@@ -1198,8 +1210,8 @@
   function setSearchHints() {
     var sp = state.sp;
     if (!sp || sp.ime) return;
-    if (sp.row === -1) setHints([['ok', 'Eingeben'], ['back', 'Suche schlie\u00dfen']]);
-    else setHints([['ok', '\u00d6ffnen'], ['play', 'Abspielen'], ['back', 'Suche schlie\u00dfen']]);
+    if (sp.row === -1) setHints([['ok', T('Eingeben')], ['back', T('Suche schlie\u00dfen')]]);
+    else setHints([['ok', T('\u00d6ffnen')], ['play', T('Abspielen')], ['back', T('Suche schlie\u00dfen')]]);
   }
 
   /* blur() alone doesn't always release the field on the TV */
@@ -1267,9 +1279,9 @@
   function searchStatus(sp) {
     var n = 0;
     for (var r = 0; r < sp.rows.length; r++) n += sp.rows[r].items.length;
-    if (sp.pending) return 'Suche ...';
-    if (!n) return 'Keine Treffer für „' + sp.term + '“.';
-    return n + ' Treffer für „' + sp.term + '“';
+    if (sp.pending) return T('Suche ...');
+    if (!n) return T('Keine Treffer für „{0}“.', sp.term);
+    return T('{0} Treffer für „{1}“', n, sp.term);
   }
 
   /* library and Seerr are searched in parallel; each row appears when ready */
@@ -1285,7 +1297,7 @@
     sp.row = -1;
     if (term.length < 2) {
       sp.pending = 0;
-      renderSearchPanel('Ab 2 Zeichen wird gesucht.');
+      renderSearchPanel(T('Ab 2 Zeichen wird gesucht.'));
       updateSearchBarFocus();
       return;
     }
@@ -1296,14 +1308,14 @@
       if (state.sp !== sp || seq !== sp.seq) return;
       var focusedKey = sp.rows[sp.row] ? sp.rows[sp.row].key : '';
       sp.rows = [];
-      if (lib && lib.length) sp.rows.push({ key: 'lib', title: 'In der Bibliothek', items: lib });
-      if (ext && ext.length) sp.rows.push({ key: 'seerr', title: 'Bei Seerr', items: ext });
+      if (lib && lib.length) sp.rows.push({ key: 'lib', title: T('In der Bibliothek'), items: lib });
+      if (ext && ext.length) sp.rows.push({ key: 'seerr', title: T('Bei Seerr'), items: ext });
       sp.row = -1;
       for (var r = 0; r < sp.rows.length; r++) if (sp.rows[r].key === focusedKey) sp.row = r;
       renderSearchPanel(searchStatus(sp));
       updateSearchBarFocus();
     }
-    $('spstatus').textContent = 'Suche ...';
+    $('spstatus').textContent = T('Suche ...');
     getJson('/Items?' + uidParam() + '&searchTerm=' + encodeURIComponent(term) +
       /* no episodes: they bury the series ("Dark" matches 42 episodes, 3 series) */
       '&recursive=true&includeItemTypes=Movie,Series,BoxSet,Video,MusicVideo,Book&limit=40' + FIELDS,
@@ -1311,7 +1323,7 @@
         if (state.sp !== sp || seq !== sp.seq) return;
         sp.pending--;
         lib = err ? [] : ((data && data.Items) || []);
-        if (err) showToast('Suche fehlgeschlagen (' + errText(err) + ').');
+        if (err) showToast(T('Suche fehlgeschlagen ({0}).', errText(err)));
         show();
       });
     if (seerr.state === 'ready') {
@@ -1319,7 +1331,7 @@
         if (state.sp !== sp || seq !== sp.seq) return;
         sp.pending--;
         ext = items;
-        if (err && err !== 'unavailable') showToast('Seerr nicht erreichbar (' + errText(err) + ').');
+        if (err && err !== 'unavailable') showToast(T('Seerr nicht erreichbar ({0}).', errText(err)));
         show();
       });
     }
@@ -1620,11 +1632,11 @@
     state.homeDirty = false;
     setTopnav(!!state.token);
     setHints([]);
-    showLoading('Lade ...');
+    showLoading(T('Lade ...'));
     fetchHomeRows(function (err, rows) {
       if (nav !== state.navSeq) return;
       if (err) {
-        showRetry('Startseite konnte nicht geladen werden (' + errText(err) + ').', loadHome);
+        showRetry(T('Startseite konnte nicht geladen werden ({0}).', errText(err)), loadHome);
         return;
       }
       state.homeRows = rows;
@@ -1687,7 +1699,7 @@
         var rows = [];
         if (resume) rows.push(resume);
         if (nextUp) rows.push(nextUp);
-        rows.push({ key: 'libs', title: 'Meine Medien', kind: 'library', items: libItems });
+        rows.push({ key: 'libs', title: T('Meine Medien'), kind: 'library', items: libItems });
         for (var j = 0; j < latest.length; j++) if (latest[j]) rows.push(latest[j]);
         cb(null, rows);
       }
@@ -1695,14 +1707,14 @@
         '/Users/' + uid + '/Items/Resume?limit=20&mediaTypes=Video' + FIELDS,
         function (e, d) {
           if (!e && d && d.Items && d.Items.length) {
-            resume = { key: 'resume', title: 'Weiterschauen', kind: 'items', wide: true, items: d.Items };
+            resume = { key: 'resume', title: T('Weiterschauen'), kind: 'items', wide: true, items: d.Items };
           }
           done();
         });
       getJson('/Shows/NextUp?' + uidParam() + '&limit=20&enableResumable=false' + FIELDS,
         function (e, d) {
           if (!e && d && d.Items && d.Items.length) {
-            nextUp = { key: 'nextup', title: 'Nächste Folgen', kind: 'items', wide: true, items: d.Items };
+            nextUp = { key: 'nextup', title: T('Nächste Folgen'), kind: 'items', wide: true, items: d.Items };
           }
           done();
         });
@@ -1710,7 +1722,7 @@
         (function (v, slot) {
           function store(e, items) {
             if (!e && items && items.length) {
-              latest[slot] = { key: 'latest:' + v.Id, title: 'Neu in ' + v.Name, kind: 'items', items: items };
+              latest[slot] = { key: 'latest:' + v.Id, title: T('Neu in {0}', v.Name), kind: 'items', items: items };
             }
             done();
           }
@@ -1782,8 +1794,8 @@
     content.appendChild(wrap);
     if (!(state.rowFocus >= 0 && state.rowFocus < rows.length)) state.rowFocus = 0;
     updateHomeFocus();
-    setHints([['ok', 'Öffnen'], ['play', 'Abspielen'], ['red', 'Suche'],
-      ['blue', 'Einstellungen'], ['back', 'Beenden']]);
+    setHints([['ok', T('Öffnen')], ['play', T('Abspielen')], ['red', T('Suche')],
+      ['blue', T('Einstellungen')], ['back', T('Beenden')]]);
     forceRepaint();  /* the first card's focus frame was cut off at launch */
     viewBackdrop();
   }
@@ -1857,13 +1869,13 @@
     state.loadingMore = false;
     getJson(basePath + '&startIndex=0&limit=' + PAGE, function (err, data) {
       if (nav !== state.navSeq) return;
-      if (err) { showRetry(errMsg + ' (' + errText(err) + ').', retry); return; }
+      if (err) { showRetry(T('{0} ({1}).', errMsg, errText(err)), retry); return; }
       var items = (data && data.Items) || [];
       state.totalCount = (data && data.TotalRecordCount) || items.length;
       if (!items.length) {
         if (onEmpty) onEmpty();
         else showError(state.libUnplayed && state.view === 'library' ?
-          'Keine ungesehenen Einträge.' : 'Keine Einträge gefunden.');
+          T('Keine ungesehenen Einträge.') : T('Keine Einträge gefunden.'));
         return;
       }
       if (onLoaded && onLoaded(items)) return;
@@ -1883,7 +1895,7 @@
       if (nav !== state.navSeq) return;
       state.loadingMore = false;
       if (err) {
-        showToast('Weitere Eintr\u00e4ge konnten nicht geladen werden (' + errText(err) + ').');
+        showToast(T('Weitere Eintr\u00e4ge konnten nicht geladen werden ({0}).', errText(err)));
         return;
       }
       var items = (data && data.Items) || [];
@@ -1923,7 +1935,7 @@
     letterJump.at = t;
     var letters = T9[digit] || '';
     var ch = letters ? letters.charAt(letterJump.n % letters.length) : '';
-    showToast(ch ? 'Springe zu \u201e' + ch + '\u201c' : 'Zum Anfang');
+    showToast(ch ? T('Springe zu \u201e{0}\u201c', ch) : T('Zum Anfang'));
     if (letterJump.timer) clearTimeout(letterJump.timer);
     /* wait a moment: the key may be pressed again for the next letter */
     letterJump.timer = setTimeout(function () { letterJump.timer = null; jumpToLetter(ch); }, 650);
@@ -1940,7 +1952,7 @@
     var lower = ch.toLowerCase();
     getJson(state.basePath + '&nameLessThan=' + encodeURIComponent(lower) + '&startIndex=0&limit=0', function (err, data) {
       if (nav !== state.navSeq || seq !== letterJump.seq) return;
-      if (err || !data || typeof data.TotalRecordCount !== 'number') { showToast('Sprung nicht m\u00f6glich.'); return; }
+      if (err || !data || typeof data.TotalRecordCount !== 'number') { showToast(T('Sprung nicht m\u00f6glich.')); return; }
       focusIndex(data.TotalRecordCount, lower);
     });
   }
@@ -1969,7 +1981,7 @@
     var v = state.lib;
     var t = state.libTitle || (v ? v.Name : state.title);
     var s = SORTS[state.libSort] || SORTS[0];
-    return t + '  ·  ' + s.label + (state.libUnplayed ? '  ·  Ungesehen' : '');
+    return t + '  ·  ' + T(s.label) + (state.libUnplayed ? '  ·  ' + T('Ungesehen') : '');
   }
 
   function openLibrary(view) {
@@ -2001,7 +2013,7 @@
     state.kind = 'items';
     setCrumb(libCrumb());
     setHints([]);
-    showLoading(v.Name + ' wird geladen ...');
+    showLoading(T('{0} wird geladen ...', v.Name));
     var s = SORTS[state.libSort] || SORTS[0];
     var folders = browsesFolders(v);
     var base = '/Items?' + uidParam() +
@@ -2011,7 +2023,7 @@
       '&sortBy=' + (folders ? 'IsFolder,' : '') + s.by +
       '&sortOrder=' + (folders ? 'Descending,' : '') + s.order +
       (state.libUnplayed ? '&filters=IsUnplayed' : '');
-    loadGridPage(nav, base, 'Inhalt konnte nicht geladen werden', reloadLibrary);
+    loadGridPage(nav, base, T('Inhalt konnte nicht geladen werden'), reloadLibrary);
   }
 
   function openSeries(series) {
@@ -2021,12 +2033,12 @@
     state.bgItem = series;
     viewBackdrop();
     setHints([]);
-    showLoading((series.Name || '') + ' wird geladen ...');
+    showLoading(T('{0} wird geladen ...', series.Name || ''));
     var base = '/Items?' + uidParam() +
       '&parentId=' + encodeURIComponent(series.Id) +
       '&includeItemTypes=Season&recursive=false' + FIELDS +
       '&sortBy=IndexNumber,SortName&sortOrder=Ascending';
-    loadGridPage(nav, base, 'Staffeln konnten nicht geladen werden', function () { openSeries(series); }, function () {
+    loadGridPage(nav, base, T('Staffeln konnten nicht geladen werden'), function () { openSeries(series); }, function () {
       /* no seasons: list the episodes directly */
       loadEpisodes(nav, series.Id, true);
     }, function (seasons) {
@@ -2045,7 +2057,7 @@
     state.bgItem = season;
     viewBackdrop();
     setHints([]);
-    showLoading(season.Name + ' wird geladen ...');
+    showLoading(T('{0} wird geladen ...', season.Name));
     loadEpisodes(nav, season.Id, false);
   }
 
@@ -2056,10 +2068,10 @@
       '&sortBy=ParentIndexNumber,IndexNumber,SortName&sortOrder=Ascending';
     var view = state.view;
     var title = state.title;
-    loadGridPage(nav, base, 'Folgen konnten nicht geladen werden', function () {
+    loadGridPage(nav, base, T('Folgen konnten nicht geladen werden'), function () {
       var n = enterView(view, title);
       state.kind = 'items';
-      showLoading('Lade ...');
+      showLoading(T('Lade ...'));
       loadEpisodes(n, parentId, recursive);
     });
   }
@@ -2284,11 +2296,11 @@
 
   function setGridHints() {
     if (state.view === 'library') {
-      var hints = [['ok', 'Öffnen'], ['play', 'Abspielen'], ['yellow', 'Sortieren'], ['green', 'Ungesehen']];
-      if (canJumpLetters()) hints.push(['digits', 'Buchstabe']);
-      setHints(hints.concat([['red', 'Suche'], ['back', 'Zurück']]));
+      var hints = [['ok', T('Öffnen')], ['play', T('Abspielen')], ['yellow', T('Sortieren')], ['green', T('Ungesehen')]];
+      if (canJumpLetters()) hints.push(['digits', T('Buchstabe')]);
+      setHints(hints.concat([['red', T('Suche')], ['back', T('Zurück')]]));
     } else {
-      setHints([['ok', 'Öffnen'], ['play', 'Abspielen'], ['red', 'Suche'], ['back', 'Zurück']]);
+      setHints([['ok', T('Öffnen')], ['play', T('Abspielen')], ['red', T('Suche')], ['back', T('Zurück')]]);
     }
   }
 
@@ -2310,7 +2322,7 @@
     var nav = enterView('details', item.SeriesName || item.Name);
     state.current = item;
     renderDetailsBody(item);
-    setHints([['ok', 'Auswählen'], ['arrows', 'Scrollen'], ['back', 'Zurück']]);
+    setHints([['ok', T('Auswählen')], ['arrows', T('Scrollen')], ['back', T('Zurück')]]);
     refreshDetails(nav);
   }
 
@@ -2342,7 +2354,7 @@
     if (item.CommunityRating) parts.push('★ ' + (Math.round(item.CommunityRating * 10) / 10));
     if (item.RunTimeTicks && isPlayable(item)) {
       var rest = item.RunTimeTicks / TICKS - resumeMs(item);
-      parts.push('Endet um ' + fmtClock(new Date(now() + rest)));
+      parts.push(T('Endet um {0}', fmtClock(new Date(now() + rest))));
     }
     return parts.join('  ·  ');
   }
@@ -2382,28 +2394,29 @@
     }
     if (isPlayable(item)) {
       if (pos > 0) {
-        addBtn('play', 'Fortsetzen ab ' + fmtTime(pos), 'primary', function () { playItem(item, { startMs: pos }); });
-        addBtn('restart', 'Von Anfang', '', function () { playItem(item, { startMs: 0 }); });
+        addBtn('play', T('Fortsetzen ab {0}', fmtTime(pos)), 'primary', function () { playItem(item, { startMs: pos }); });
+        addBtn('restart', T('Von Anfang'), '', function () { playItem(item, { startMs: 0 }); });
       } else {
-        addBtn('play', 'Abspielen', 'primary', function () { playItem(item, { startMs: 0 }); });
+        addBtn('play', T('Abspielen'), 'primary', function () { playItem(item, { startMs: 0 }); });
       }
     }
     if (item.Type === 'Book') {
       var prog = readProgress(item.Id);
       if (prog && progressLabel(prog)) {
-        addBtn('read', 'Weiterlesen (' + progressLabel(prog) + ')', 'primary', function () { openBook(item, false); });
-        addBtn('restart', 'Von vorne', '', function () { openBook(item, true); });
+        addBtn('read', T('Weiterlesen ({0})', progressLabel(prog)), 'primary', function () { openBook(item, false); });
+        addBtn('restart', T('Von vorne'), '', function () { openBook(item, true); });
       } else {
-        addBtn('read', 'Lesen', 'primary', function () { openBook(item, true); });
+        addBtn('read', T('Lesen'), 'primary', function () { openBook(item, true); });
       }
     }
     if (isPlayable(item) || item.Type === 'Series' || item.Type === 'Season' || item.Type === 'Book') {
       var played = !!(item.UserData && item.UserData.Played);
-      var word = item.Type === 'Book' ? 'gelesen' : 'gesehen';
-      addBtn('played', played ? 'Als un' + word + ' markieren' : 'Als ' + word + ' markieren', '', function () { togglePlayed(item); });
+      var book = item.Type === 'Book';
+      addBtn('played', played ? (book ? T('Als ungelesen markieren') : T('Als ungesehen markieren')) :
+        (book ? T('Als gelesen markieren') : T('Als gesehen markieren')), '', function () { togglePlayed(item); });
     }
     if (item.Type === 'Episode' && item.SeriesId) {
-      addBtn('series', 'Zur Serie', '', function () {
+      addBtn('series', T('Zur Serie'), '', function () {
         openSeries({ Id: item.SeriesId, Name: item.SeriesName || '' });
       });
     }
@@ -2462,7 +2475,7 @@
     apiAlt(played ? 'DELETE' : 'POST', '/UserPlayedItems/' + id + '?' + uidParam(),
       '/Users/' + uid + '/PlayedItems/' + id,
       function (err, txt) {
-        if (err) { showToast('Konnte Status nicht ändern (' + errText(err) + ').'); return; }
+        if (err) { showToast(T('Konnte Status nicht ändern ({0}).', errText(err))); return; }
         var ud = null;
         try { ud = JSON.parse(txt); } catch (e) {}
         if (!ud || typeof ud.Played !== 'boolean') {
@@ -2474,8 +2487,9 @@
         item.UserData = ud;
         propagateUserData(item.Id, ud);
         state.homeDirty = true;
-        var w = item.Type === 'Book' ? 'gelesen' : 'gesehen';
-        showToast(played ? 'Als un' + w + ' markiert' : 'Als ' + w + ' markiert');
+        var book = item.Type === 'Book';
+        showToast(played ? (book ? T('Als ungelesen markiert') : T('Als ungesehen markiert')) :
+          (book ? T('Als gelesen markiert') : T('Als gesehen markiert')));
         if (state.view === 'details' && state.current === item) {
           var st = content.scrollTop;
           renderDetailsBody(item);
@@ -2533,15 +2547,15 @@
 
   function progressLabel(p) {
     if (!p) return '';
-    if (typeof p.page === 'number') return 'Seite ' + (p.page + 1);
-    if (typeof p.chapter === 'number') return 'Kapitel ' + (p.chapter + 1);
+    if (typeof p.page === 'number') return T('Seite {0}', p.page + 1);
+    if (typeof p.chapter === 'number') return T('Kapitel {0}', p.chapter + 1);
     return '';
   }
 
   /* entry from the details page; fresh = ignore the saved position */
   function openBook(item, fresh) {
     if (proxy.state !== 'on') {
-      showToast('Bücher brauchen das TLS-Modul (NaCl).');
+      showToast(T('Bücher brauchen das TLS-Modul (NaCl).'));
       return;
     }
     var req = ++state.playReq;
@@ -2552,8 +2566,8 @@
       state.playLoading = false;
       hidePlayerLoading();
       if (err || !info) {
-        showToast(/unknown archive/.test(err) ? 'Dieses Dateiformat wird nicht unterstützt.' :
-          'Buch konnte nicht geöffnet werden (' + err + ').');
+        showToast(/unknown archive/.test(err) ? T('Dieses Dateiformat wird nicht unterstützt.') :
+          T('Buch konnte nicht geöffnet werden ({0}).', err));
         return;
       }
       var saved = fresh ? null : readProgress(item.Id);
@@ -2563,7 +2577,7 @@
       setChrome(false);
       readerEl.className = info.epub ? 'epub' : 'comic';
       if (info.epub) openEpub(saved);
-      else if (!info.pages) { exitReader(); showToast('Keine Seiten im Archiv gefunden.'); }
+      else if (!info.pages) { exitReader(); showToast(T('Keine Seiten im Archiv gefunden.')); }
       else openComic(saved && typeof saved.page === 'number' ? saved.page : 0);
     });
   }
@@ -2607,8 +2621,7 @@
 
   function openComic(page) {
     readerEl.innerHTML = '<div id="rview"><img id="rimg" alt=""></div><div id="rinfo"></div>' +
-      '<div id="rhint">◀ ▶ Blättern  ·  OK: ' +
-      'Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen</div>';
+      '<div id="rhint">' + esc(T('◀ ▶ Blättern  ·  OK: Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen')) + '</div>';
     fadeReaderHint();
     var r = state.reader;
     r.kind = 'comic';
@@ -2642,7 +2655,7 @@
           $('rimg').src = bookUrl(r.item.Id, 'page', page) + '&retry=3';  /* worked now */
           return;
         }
-        showToast('Seite ' + (page + 1) + ' konnte nicht geladen werden' + (err ? ' (' + err + ').' : '.'));
+        showToast(err ? T('Seite {0} konnte nicht geladen werden ({1}).', page + 1, err) : T('Seite {0} konnte nicht geladen werden.', page + 1));
       });
     };
     showComicPage(r.page, false);
@@ -2686,8 +2699,8 @@
 
   function comicInfo() {
     var r = state.reader;
-    $('rinfo').textContent = 'Seite ' + (r.page + 1) + ' / ' + r.info.pages +
-      (r.mode === 'width' ? '  \u00b7  Breite (\u25b2\u25bc)' : '');
+    $('rinfo').textContent = T('Seite {0} / {1}', r.page + 1, r.info.pages) +
+      (r.mode === 'width' ? '  \u00b7  ' + T('Breite (\u25b2\u25bc)') : '');
   }
 
   function layoutComic(fromEnd) {
@@ -2756,7 +2769,7 @@
     r.fontIdx = 1;
     try { r.fontIdx = parseInt(localStorage.getItem('jf_epub_font') || '1', 10) || 0; } catch (e) {}
     readerEl.innerHTML = '<div id="epub"><div id="epubInner"></div></div><div id="rinfo"></div>' +
-      '<div id="rhint">◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen</div>';
+      '<div id="rhint">' + esc(T('◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen')) + '</div>';
     fadeReaderHint();
     showPlayerLoading();
     bookGet(bookUrl(r.item.Id, 'file', 'META-INF/container.xml'), false, function (err, xml) {
@@ -2785,7 +2798,7 @@
           var m = manifest[refs[i].getAttribute('idref')];
           if (m && /html/.test(m.type) && refs[i].getAttribute('linear') !== 'no') r.chapters.push(m.href);
         }
-        if (!r.chapters.length) { epubFail('keine Kapitel'); return; }
+        if (!r.chapters.length) { epubFail(T('keine Kapitel')); return; }
         var c = saved && typeof saved.chapter === 'number' ? Math.min(saved.chapter, r.chapters.length - 1) : 0;
         showChapter(c, saved && typeof saved.frac === 'number' ? saved.frac : 0);
       });
@@ -2795,7 +2808,7 @@
   function epubFail(why) {
     hidePlayerLoading();
     exitReader();
-    showToast('EPUB konnte nicht gelesen werden (' + why + ').');
+    showToast(T('EPUB konnte nicht gelesen werden ({0}).', why));
   }
 
   /* where: 0..1 = position in the chapter, -1 = last page */
@@ -2808,7 +2821,7 @@
     bookGet(bookUrl(r.item.Id, 'file', path), false, function (err, html) {
       if (state.reader !== r || r.chapter !== idx) return;
       hidePlayerLoading();
-      if (err) { showToast('Kapitel konnte nicht geladen werden (' + err + ').'); return; }
+      if (err) { showToast(T('Kapitel konnte nicht geladen werden ({0}).', err)); return; }
       var inner = $('epubInner');
       inner.innerHTML = chapterHtml(html, dirOf(path), r.item.Id);
       inner.style.fontSize = EPUB_FONT_SIZES[r.fontIdx] + 'px';
@@ -2875,8 +2888,7 @@
   function showEpubPage() {
     var r = state.reader;
     $('epubInner').style.marginLeft = (-r.page * r.step) + 'px';
-    $('rinfo').textContent = 'Kapitel ' + (r.chapter + 1) + ' / ' + r.chapters.length +
-      '  ·  Seite ' + (r.page + 1) + ' / ' + r.pages;
+    $('rinfo').textContent = T('Kapitel {0} / {1}', r.chapter + 1, r.chapters.length) + '  ·  ' + T('Seite {0} / {1}', r.page + 1, r.pages);
     saveProgress(r.item.Id, { chapter: r.chapter, frac: r.pages > 1 ? r.page / r.pages : 0 });
     if (r.chapter === r.chapters.length - 1 && r.page === r.pages - 1) bookFinished();
   }
@@ -2943,7 +2955,7 @@
     state.playReq++;
     state.playLoading = false;
     hidePlayerLoading();
-    showToast('Wiedergabe abgebrochen');
+    showToast(T('Wiedergabe abgebrochen'));
   }
 
   /* opts.startMs: resume position (defaults to the saved position)
@@ -2955,13 +2967,13 @@
     var req = ++state.playReq;
     state.playLoading = true;
     showPlayerLoading();
-    if (!opts.chain) showToast('Lade ' + (item.Name || '') + ' ...');
+    if (!opts.chain) showToast(T('Lade {0} ...', item.Name || ''));
     getJson('/Items/' + encodeURIComponent(item.Id) + '/PlaybackInfo?' + uidParam(), function (err, data) {
       if (req !== state.playReq) return;
       state.playLoading = false;
       if (err) {
         hidePlayerLoading();
-        showToast('Wiedergabe-Info fehlgeschlagen (' + errText(err) + ').');
+        showToast(T('Wiedergabe-Info fehlgeschlagen ({0}).', errText(err)));
         if (opts.chain) stopPlayback();
         return;
       }
@@ -3248,7 +3260,7 @@
     var pct = dur > 0 ? Math.min(100, Math.max(0, display / dur * 100)) : 0;
     progressFill.style.width = pct + '%';
     ptime.textContent = fmtTime(display) + ' / ' + fmtTime(dur);
-    pend.textContent = dur > 0 ? 'Endet um ' + fmtClock(new Date(now() + Math.max(0, dur - display))) : '';
+    pend.textContent = dur > 0 ? T('Endet um {0}', fmtClock(new Date(now() + Math.max(0, dur - display)))) : '';
     var wasPaused = state.playerPaused;
     state.playerPaused = (st === 'PAUSED');
     pauseIcon.className = state.playerPaused && state.seekTarget === null ? '' : 'hidden';
@@ -3260,10 +3272,9 @@
       preloadTrickplayAround(cur, 2);
     }
     if (state.seekTarget !== null) {
-      phint.textContent = 'Spule zu ' + fmtTime(state.seekTarget) + ' ...';
+      phint.textContent = T('Spule zu {0} ...', fmtTime(state.seekTarget));
     } else {
-      phint.textContent = (state.playerPaused ? 'OK: Weiter' : 'OK: Pause') +
-        '  ·  ◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp';
+      phint.textContent = (state.playerPaused ? T('OK: Weiter') : T('OK: Pause')) + '  ·  ' + T('◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp');
     }
     if (st === 'PLAYING' && now() - state.lastReport > 10000) reportProgress('TimeUpdate');
   }
@@ -3340,8 +3351,8 @@
     var parts = [];
     if (st.Language) parts.push(st.Language);
     if (st.Codec) parts.push(st.Codec.toUpperCase());
-    if (st.Channels) parts.push(st.Channels + ' Kan.');
-    return parts.join(' ') || ('Spur ' + st.Index);
+    if (st.Channels) parts.push(T('{0} Kan.', st.Channels));
+    return parts.join(' ') || T('Spur {0}', st.Index);
   }
 
   function findStream(list, index) {
@@ -3427,7 +3438,7 @@
         if (seq !== state.subSeq) return;
         if (err || !data || !data.TrackEvents) {
           state.subIndex = -1;
-          showToast('Untertitel konnten nicht geladen werden (' + errText(err || 'json') + ').');
+          showToast(T('Untertitel konnten nicht geladen werden ({0}).', errText(err || 'json')));
           return;
         }
         var ev = [];
@@ -3468,12 +3479,12 @@
         webapis.avplay.setSelectTrack('AUDIO', idx);
         showToast('Audio: ' + streamLabel(st));
       } catch (e2) {
-        showToast('Tonspur konnte nicht gewechselt werden.');
+        showToast(T('Tonspur konnte nicht gewechselt werden.'));
       }
       return;
     }
     /* transcoding (or a codec the TV can't decode): restart with that track */
-    showToast('Audio: ' + streamLabel(st) + ' – wird neu geladen ...');
+    showToast(T('Audio: {0} – wird neu geladen ...', streamLabel(st)));
     var pos = curPos();
     stopEncoding();
     state.triedFallback = true;
@@ -3485,9 +3496,9 @@
     try {
       webapis.avplay.setSpeed(v);
       state.speed = v;
-      showToast(v === 1 ? 'Normale Geschwindigkeit' : v + '× Geschwindigkeit');
+      showToast(v === 1 ? T('Normale Geschwindigkeit') : T('{0}× Geschwindigkeit', v));
     } catch (e) {
-      showToast(v + '× wird bei dieser Wiedergabe nicht unterstützt.');
+      showToast(T('{0}× wird bei dieser Wiedergabe nicht unterstützt.', v));
     }
   }
 
@@ -3495,9 +3506,9 @@
     var m = DISPLAY_MODES[state.displayMode] || DISPLAY_MODES[0];
     try {
       webapis.avplay.setDisplayMethod(m.mode);
-      if (!quiet) showToast('Bildformat: ' + m.label);
+      if (!quiet) showToast(T('Bildformat: {0}', T(m.label)));
     } catch (e) {
-      if (!quiet) showToast('Bildformat wird nicht unterstützt.');
+      if (!quiet) showToast(T('Bildformat wird nicht unterstützt.'));
     }
   }
 
@@ -3508,10 +3519,10 @@
     var curAudio = findStream(audios, state.audioIndex);
     return [
       {
-        label: 'Untertitel',
-        value: curSub ? streamLabel(curSub) : (subs.length ? 'Aus' : 'Keine'),
+        label: T('Untertitel'),
+        value: curSub ? streamLabel(curSub) : (subs.length ? T('Aus') : T('Keine')),
         sub: function () {
-          var list = [{ label: 'Aus', checked: state.subIndex < 0, action: function () {
+          var list = [{ label: T('Aus'), checked: state.subIndex < 0, action: function () {
             state.subPref = 'off';
             selectSubtitle(-1);
           } }];
@@ -3542,7 +3553,7 @@
         }
       },
       {
-        label: 'Geschwindigkeit',
+        label: T('Geschwindigkeit'),
         value: state.speed + '×',
         sub: function () {
           var list = [];
@@ -3555,13 +3566,13 @@
         }
       },
       {
-        label: 'Bildformat',
-        value: DISPLAY_MODES[state.displayMode].label,
+        label: T('Bildformat'),
+        value: T(DISPLAY_MODES[state.displayMode].label),
         sub: function () {
           var list = [];
           for (var i = 0; i < DISPLAY_MODES.length; i++) {
             (function (n) {
-              list.push({ label: DISPLAY_MODES[n].label, checked: n === state.displayMode, action: function () {
+              list.push({ label: T(DISPLAY_MODES[n].label), checked: n === state.displayMode, action: function () {
                 state.displayMode = n;
                 try { localStorage.setItem('jf_display', String(n)); } catch (e) {}
                 applyDisplayMode(false);
@@ -3572,8 +3583,8 @@
         }
       },
       {
-        label: 'Wiedergabe',
-        value: (state.playMethod === 'Transcode' ? 'Transkodiert' : 'Direkt') +
+        label: T('Wiedergabe'),
+        value: (state.playMethod === 'Transcode' ? T('Transkodiert') : T('Direkt')) +
           (state.playerSource && state.playerSource.Container ? ' (' + state.playerSource.Container.toUpperCase() + ')' : ''),
         info: true
       }
@@ -3584,7 +3595,7 @@
 
   function openMenu() {
     if (!state.prepared) return;
-    state.menuStack = [{ title: 'Optionen', items: menuMain(), focus: 0 }];
+    state.menuStack = [{ title: T('Optionen'), items: menuMain(), focus: 0 }];
     renderMenu();
     showPlayerUi();
   }
@@ -3892,7 +3903,7 @@
   function scheduleFallback(token) {
     if (token !== state.playToken || state.stopping || state.fallbackPending) return;
     if (state.triedFallback) {
-      showToast('Wiedergabe fehlgeschlagen');
+      showToast(T('Wiedergabe fehlgeschlagen'));
       stopPlayback();
       return;
     }
@@ -3927,7 +3938,7 @@
     findNextEpisode(item, function (next) {
       if (token !== state.playToken || state.stopping) return;
       if (!next) { stopPlayback(); return; }
-      showToast('Nächste Folge: ' + (episodeCode(next) ? episodeCode(next) + ' ' : '') + (next.Name || ''));
+      showToast(T('Nächste Folge: {0}', (episodeCode(next) ? episodeCode(next) + ' ' : '') + (next.Name || '')));
       playItem(next, { startMs: 0, chain: true });
     });
   }
@@ -3949,7 +3960,7 @@
     var p = null;
     try { p = webapis.avplay; } catch (e) { p = null; }
     if (!p) {
-      showToast('AVPlay nicht verfügbar');
+      showToast(T('AVPlay nicht verfügbar'));
       stopPlayback();
       return;
     }
@@ -3969,7 +3980,7 @@
     ptime.textContent = fmtTime(state.playerOffset) + ' / ' + fmtTime(state.playerDuration);
     pend.textContent = '';
     progressFill.style.width = (state.playerDuration ? Math.min(100, state.playerOffset / state.playerDuration * 100) : 0) + '%';
-    phint.textContent = 'Wird geladen ...  ·  Zurück: Abbrechen';
+    phint.textContent = T('Wird geladen ...  ·  Zurück: Abbrechen');
     state.playerPaused = false;
     state.prepared = false;
     state.fallbackPending = false;
@@ -3999,10 +4010,10 @@
           onerror: function (e) {
             if (token !== state.playToken || state.stopping) return;
             if (!state.triedFallback) {
-              showToast('Direkte Wiedergabe fehlgeschlagen, versuche Transcoding ...');
+              showToast(T('Direkte Wiedergabe fehlgeschlagen, versuche Transcoding ...'));
               scheduleFallback(token);
             } else {
-              showToast('AVPlay Fehler: ' + e);
+              showToast(T('AVPlay-Fehler: {0}', e));
               stopPlayback();
             }
           }
@@ -4035,7 +4046,7 @@
           if (token !== state.playToken || state.stopping) return;
           clearPrepareTimer();
           if (!state.triedFallback) {
-            showToast('Direkte Wiedergabe fehlgeschlagen, versuche Transcoding ...');
+            showToast(T('Direkte Wiedergabe fehlgeschlagen, versuche Transcoding ...'));
             scheduleFallback(token);
           } else {
             showToast('prepare: ' + e);
@@ -4046,10 +4057,10 @@
           state.prepareTimer = setTimeout(function () {
             if (token !== state.playToken || state.stopping || state.prepared) return;
             if (!state.triedFallback) {
-              showToast('Wiedergabe antwortet nicht, versuche Transcoding ...');
+              showToast(T('Wiedergabe antwortet nicht, versuche Transcoding ...'));
               scheduleFallback(token);
             } else {
-              showToast('Wiedergabe-Timeout');
+              showToast(T('Wiedergabe-Timeout'));
               stopPlayback();
             }
           }, state.triedFallback ? 40000 : 12000);
@@ -4310,7 +4321,7 @@
     try {
       handleKeyDown(e);
     } catch (err) {
-      try { showToast('Fehler: ' + (err && err.message ? err.message : err)); } catch (e2) {}
+      try { showToast(T('Fehler: {0}', err && err.message ? err.message : err)); } catch (e2) {}
       try {
         state.stack = [];
         goHome();
@@ -4376,8 +4387,8 @@
       }
       useDirect(info, done);
     }
-    if (!server.jf) { finish(false, 'kein Server'); return; }
-    if (window.JF_NO_NACL) { finish(false, 'deaktiviert'); return; }
+    if (!server.jf) { finish(false, T('kein Server')); return; }
+    if (window.JF_NO_NACL) { finish(false, T('deaktiviert')); return; }
     var holder = document.createElement('div');
     holder.style.position = 'absolute';
     holder.style.width = '0';
@@ -4415,10 +4426,10 @@
         try { localStorage.setItem('jf_seerr_cookies', parts.slice(2).join('|')); } catch (e) {}
       }
     }, true);
-    holder.addEventListener('error', function () { finish(false, 'Modul nicht geladen'); }, true);
+    holder.addEventListener('error', function () { finish(false, T('Modul nicht geladen')); }, true);
     holder.addEventListener('crash', function () {
       seerr.state = 'unavailable';
-      if (!finished) { finish(false, 'Modul abgestürzt'); return; }
+      if (!finished) { finish(false, T('Modul abgestürzt')); return; }
       proxyLost();
     }, true);
     module = document.createElement('embed');
@@ -4427,7 +4438,7 @@
     module.setAttribute('type', 'application/x-nacl');
     module.setAttribute('src', 'native/dist/tlsproxy_arm.nmf');
     holder.appendChild(module);
-    timer = setTimeout(function () { finish(false, 'Timeout'); }, 15000);
+    timer = setTimeout(function () { finish(false, T('Timeout')); }, 15000);
   }
 
   /* ---------- Seerr ---------- */
@@ -4543,10 +4554,10 @@
       poster.appendChild(img);
     }
     if (s.status === 5) poster.appendChild(el('div', 'badge done', '✓'));
-    else if (SEERR_BADGE[s.status]) poster.appendChild(el('div', 'badge seerr', SEERR_BADGE[s.status]));
+    else if (SEERR_BADGE[s.status]) poster.appendChild(el('div', 'badge seerr', T(SEERR_BADGE[s.status])));
     card.appendChild(poster);
     card.appendChild(el('div', 'cardtitle', s.Name));
-    card.appendChild(el('div', 'cardsub', (s.mediaType === 'tv' ? 'Serie' : 'Film') + (s.year ? '  ·  ' + s.year : '')));
+    card.appendChild(el('div', 'cardsub', (s.mediaType === 'tv' ? T('Serie') : T('Film')) + (s.year ? '  ·  ' + s.year : '')));
     return card;
   }
 
@@ -4571,10 +4582,10 @@
     var nav = enterView('seerr', entry.Name);
     state.current = entry;
     renderSeerrDetails(entry, null);
-    setHints([['ok', 'Auswählen'], ['arrows', 'Scrollen'], ['back', 'Zurück']]);
+    setHints([['ok', T('Auswählen')], ['arrows', T('Scrollen')], ['back', T('Zurück')]]);
     seerrCall('GET', '/' + entry.mediaType + '/' + entry.tmdbId + '?language=de', null, function (err, d) {
       if (nav !== state.navSeq) return;
-      if (err || !d) { showToast('Seerr: Details nicht geladen (' + errText(err) + ').'); return; }
+      if (err || !d) { showToast(T('Seerr: Details nicht geladen ({0}).', errText(err))); return; }
       var fresh = seerrEntry({
         id: d.id, mediaType: entry.mediaType, title: d.title, name: d.name,
         releaseDate: d.releaseDate, firstAirDate: d.firstAirDate,
@@ -4598,12 +4609,12 @@
     var info = el('div', 'detailinfo');
     info.appendChild(el('div', 'detailseries', 'Seerr'));
     info.appendChild(el('div', 'detailtitle', s.Name));
-    var meta = [s.mediaType === 'tv' ? 'Serie' : 'Film'];
+    var meta = [s.mediaType === 'tv' ? T('Serie') : T('Film')];
     if (s.year) meta.push(s.year);
-    if (d && d.runtime) meta.push(d.runtime + ' Min.');
-    if (d && d.numberOfSeasons) meta.push(d.numberOfSeasons + (d.numberOfSeasons === 1 ? ' Staffel' : ' Staffeln'));
+    if (d && d.runtime) meta.push(T('{0} Min.', d.runtime));
+    if (d && d.numberOfSeasons) meta.push(d.numberOfSeasons === 1 ? T('1 Staffel') : T('{0} Staffeln', d.numberOfSeasons));
     if (d && d.voteAverage) meta.push('★ ' + (Math.round(d.voteAverage * 10) / 10));
-    if (SEERR_STATUS[s.status]) meta.push(SEERR_STATUS[s.status]);
+    if (SEERR_STATUS[s.status]) meta.push(T(SEERR_STATUS[s.status]));
     info.appendChild(el('div', 'detailmeta', meta.join('  ·  ')));
     if (d && d.genres && d.genres.length) {
       var g = [];
@@ -4620,14 +4631,14 @@
       buttons.push(b);
     }
     if (s.jellyfinId && (s.status === 5 || s.status === 4)) {
-      addBtn('main', 'In der Bibliothek öffnen', 'primary', function () { openJellyfinItem(s.jellyfinId); });
+      addBtn('main', T('In der Bibliothek öffnen'), 'primary', function () { openJellyfinItem(s.jellyfinId); });
     }
     if (d && (!s.status || s.status === 1 || (s.mediaType === 'tv' && s.status === 4))) {
       addBtn(s.status === 4 ? 'request' : 'main',
-        s.mediaType === 'tv' ? (s.status === 4 ? 'Fehlende Staffeln anfragen' : 'Alle Staffeln anfragen') : 'Anfragen',
+        s.mediaType === 'tv' ? (s.status === 4 ? T('Fehlende Staffeln anfragen') : T('Alle Staffeln anfragen')) : T('Anfragen'),
         s.status === 4 ? '' : 'primary', function () { seerrRequest(s); });
     }
-    if (!d) info.appendChild(el('div', 'detailmeta', 'Lade Details von Seerr ...'));
+    if (!d) info.appendChild(el('div', 'detailmeta', T('Lade Details von Seerr ...')));
     info.appendChild(btnRow);
     info.appendChild(el('div', 'overview', (d && d.overview) || ''));
     wrap.appendChild(poster);
@@ -4648,11 +4659,11 @@
     seerrCall('POST', '/request', body, function (err, data) {
       if (err) {
         var msg = (data && data.message) || errText(err);
-        showToast(err === 409 ? 'Bereits angefragt.' : err === 403 ? 'Keine Berechtigung für Anfragen.' :
-          'Anfrage fehlgeschlagen (' + msg + ').');
+        showToast(err === 409 ? T('Bereits angefragt.') : err === 403 ? T('Keine Berechtigung für Anfragen.') :
+          T('Anfrage fehlgeschlagen ({0}).', msg));
         return;
       }
-      showToast('„' + s.Name + '“ wurde angefragt.');
+      showToast(T('„{0}“ wurde angefragt.', s.Name));
       if (state.view === 'seerr' && state.current && state.current.tmdbId === s.tmdbId) {
         showSeerrDetails(s, false);
       }
@@ -4664,7 +4675,7 @@
     getJsonAlt('/Items/' + encodeURIComponent(id) + '?' + uidParam(),
       '/Users/' + encodeURIComponent(state.userId) + '/Items/' + encodeURIComponent(id),
       function (err, item) {
-        if (err || !item) { showToast('Nicht in der Bibliothek gefunden (' + errText(err) + ').'); return; }
+        if (err || !item) { showToast(T('Nicht in der Bibliothek gefunden ({0}).', errText(err))); return; }
         openItem(item);
       });
   }
@@ -4674,11 +4685,11 @@
      this one only TLS 1.0, which the server should not offer). */
   function useDirect(info, done) {
     var a = server.jf;
-    proxy.info = 'keine (Modul: ' + info + ')';
+    proxy.info = T('keine (Modul: {0})', info);
     if (!a) { proxy.state = 'failed'; done(); return; }
     if (a.scheme === 'http') {
       proxy.state = 'direct';
-      proxy.info = 'HTTP direkt (ohne Modul: ' + info + ')';
+      proxy.info = T('HTTP direkt (ohne Modul: {0})', info);
       API = a.url;
       done();
       return;
@@ -4686,7 +4697,7 @@
     probeDirect(a.url, function (ok) {
       if (ok) {
         proxy.state = 'direct';
-        proxy.info = 'TLS direkt vom Fernseher (ohne Modul: ' + info + ')';
+        proxy.info = T('TLS direkt vom Fernseher (ohne Modul: {0})', info);
         API = a.url;
       } else {
         proxy.state = 'failed';
@@ -4719,24 +4730,23 @@
   function proxyLost() {
     if (proxy.state !== 'on') return;
     if (state.view === 'player') stopPlayback();
-    useDirect('abgest\u00fcrzt', function () {
+    useDirect(T('abgest\u00fcrzt'), function () {
       if (proxy.state === 'failed') showModuleError();
-      else showToast('TLS-Modul abgest\u00fcrzt \u2013 direkte Verbindung');
+      else showToast(T('TLS-Modul abgest\u00fcrzt \u2013 direkte Verbindung'));
     });
   }
 
   /* https:// servers can't be reached without the module (the TV itself
      only speaks TLS 1.0) */
   function showModuleError() {
-    var box = loginShell('Keine sichere Verbindung',
-      'Das TLS-Modul konnte nicht gestartet werden (' + (proxy.error || 'unbekannt') + '), und der ' +
-      'Fernseher selbst erreicht den Server nicht (er beherrscht kein aktuelles TLS).', null, null);
+    var box = loginShell(T('Keine sichere Verbindung'),
+      T('Das TLS-Modul konnte nicht gestartet werden ({0}), und der Fernseher selbst erreicht den Server nicht (er beherrscht kein aktuelles TLS).', proxy.error || T('unbekannt')), null, null);
     var btns = el('div', 'loginbtns');
-    var retry = loginButton(btns, 'Erneut versuchen', 'primary', function () {
-      showLoading('Neustart ...');
+    var retry = loginButton(btns, T('Erneut versuchen'), 'primary', function () {
+      showLoading(T('Neustart ...'));
       setTimeout(function () { window.location.reload(); }, 200);
     });
-    var change = loginButton(btns, 'Server \u00e4ndern', '', function () { showServerSetup(); });
+    var change = loginButton(btns, T('Server \u00e4ndern'), '', function () { showServerSetup(); });
     box.appendChild(btns);
     setLoginRows([[retry, change]], 0, 0);
   }
@@ -4745,12 +4755,12 @@
     if (server.jf && proxy.state === 'failed') { showModuleError(); return; }
     if (!state.token) { showLogin(); return; }
     setChrome(true);
-    showLoading('Verbinde ...');
+    showLoading(T('Verbinde ...'));
     getJson('/Users/Me', function (err, user) {
       if (!state.token) return; /* 401 already handled by sessionExpired */
       if (err) {
         /* keep the login: the server may just be unreachable right now */
-        showRetry('Server nicht erreichbar (' + errText(err) + ').', startup);
+        showRetry(T('Server nicht erreichbar ({0}).', errText(err)), startup);
         return;
       }
       state.userId = user.Id;
@@ -4760,7 +4770,32 @@
       loadHome();
     });
   }
+  /* The TV's menu language (Tizen system info "LOCALE", e.g. "de_DE"), else
+     the browser's. German is built in, the other languages come from
+     i18n.js; languages without a translation get English. */
+  function detectLanguage(done) {
+    var finished = false;
+    function use(code) {
+      if (finished) return;
+      finished = true;
+      var all = window.JF_I18N || {};
+      var l = String(code || navigator.language || 'en').toLowerCase().slice(0, 2);
+      LANG = l === 'de' ? 'de' : (all[l] ? l : 'en');
+      TR = LANG === 'de' ? null : (all[LANG] || null);
+      try { document.documentElement.lang = LANG; } catch (e) {}
+      done();
+    }
+    if (window.JF_LANG) { use(window.JF_LANG); return; }
+    try {
+      tizen.systeminfo.getPropertyValue('LOCALE', function (loc) { use(loc && loc.language); },
+        function () { use(null); });
+    } catch (e) { use(null); }
+    setTimeout(function () { use(null); }, 1500);
+  }
+
   setChrome(true);
-  showLoading('Sichere Verbindung wird aufgebaut ...');
-  startProxy(startup);
+  detectLanguage(function () {
+    showLoading(T('Sichere Verbindung wird aufgebaut ...'));
+    startProxy(startup);
+  });
 }());

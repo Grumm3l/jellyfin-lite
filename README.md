@@ -29,6 +29,8 @@ Images in the screenshots: [Blender open movies](https://studio.blender.org/film
   downloading the whole file
 - Book and home video libraries are browsed by folder
 - Big libraries: jump to a letter with the number keys (7 = P Q R S)
+- In the TV's language: English, German, French, Spanish, Italian, Dutch,
+  Polish and Portuguese (other languages get English)
 - Optional backdrops and a calmer display mode for TVs whose brightness
   jumps between dark and bright screens
 
@@ -115,6 +117,7 @@ EPUB: ◀ ▶ pages, ▲ ▼ chapters, OK font size.
 | Path | Content |
 | --- | --- |
 | `app.js`, `index.html`, `style.css` | the app |
+| `i18n.js` | translations (the texts in `app.js` are German) |
 | `config.xml` | Tizen widget manifest |
 | `native/` | NaCl module: source, prebuilt `dist/` |
 | `nix/` | Nix packages: NaCl SDK, module, sdb, PC test |
