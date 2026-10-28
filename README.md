@@ -1,0 +1,121 @@
+# Jellyfin Lite
+
+A Jellyfin client for Samsung TVs with Tizen 2.3 (2015 models), written for
+the remote control. Developed and tested on a UE48J5670. The interface is in
+German.
+
+![Moving through the home screen, the movie library, a details page and search](docs/demo.gif)
+
+| | |
+| --- | --- |
+| ![Home screen](docs/home.png) | ![Details page](docs/details.png) |
+| ![Episodes](docs/episodes.png) | ![Search with Seerr results](docs/search.png) |
+| ![Comic reader](docs/reader.png) | ![Profile selection](docs/login.png) |
+
+The screenshots use invented titles and generated artwork.
+
+## Features
+
+- Movies and series: continue watching, next episodes, watched state, resume
+- Playback with the TV's own player (AVPlay); files with unsupported audio
+  (E-AC3, TrueHD, …) are transcoded by the server
+- Player options: subtitles, audio track, speed, picture format; seeking with
+  preview images
+- Next episode starts automatically (can be turned off)
+- Search in the top bar; with [Seerr](https://github.com/seerr-team/seerr),
+  titles that aren't in the library can be requested from there
+- Books: comics (CBZ, CBR), EPUB and PDF, read page by page without
+  downloading the whole file
+- Book and home video libraries are browsed by folder, like in jellyfin-web
+- Big libraries: jump to a letter with the number keys (7 = P Q R S)
+- Optional backdrops and a calmer display mode for TVs whose brightness
+  jumps between dark and bright screens
+
+Planned: see [TODO.md](TODO.md).
+
+## How it connects
+
+The TV's browser only supports TLS 1.0. Jellyfin Lite ships a Native Client
+module that speaks TLS 1.2 and passes the app's requests to the server. The
+same module unpacks comic archives and renders PDF pages. Details are in
+[native/README.md](native/README.md).
+
+Servers on the home network that use plain `http://` also work without the
+module.
+
+## Requirements
+
+- Samsung TV with Tizen 2.3 in developer mode, with your PC's IP set as host
+- A Samsung author and distributor certificate (the distributor certificate
+  must contain the TV's DUID)
+- [Nix](https://nixos.org) with flakes
+- A Jellyfin server, reachable over HTTPS (certificate from a public CA) or
+  over HTTP in the home network
+
+## Install
+
+Put the certificates into `certs/` (not committed):
+
+| File | Content |
+| --- | --- |
+| `certs/author.p12` | author certificate |
+| `certs/distributor.p12` | distributor certificate |
+| `certs/password.txt` | password of both files |
+
+Then sign, install and start the app:
+
+```bash
+nix run . -- 192.168.1.50   # IP of the TV; it is remembered in .tv-ip
+nix run .                   # next time
+```
+
+On first start the app asks for the server address, e.g.
+`jellyfin.example.com` or `http://192.168.1.10:8096`, and optionally the
+Seerr address.
+
+Other commands:
+
+| Command | Does |
+| --- | --- |
+| `nix run .#sign` | create `JellyfinLite-signed.wgt` |
+| `nix run .#native` | rebuild the NaCl module into `native/dist/` |
+| `nix run .#test-books -- a.cbr b.pdf` | test archive and PDF reading on the PC |
+| `nix build` | unsigned package, for signing with Tizen Studio |
+| `nix develop` | shell with all of the above and `sdb` |
+
+## Remote control
+
+| Key | Browsing | Player |
+| --- | --- | --- |
+| Arrows | move (▲ at the top: search, profile) | ◀ ▶ seek, ▼ options |
+| OK | open | pause / resume |
+| ▶ / ▶❚❚ | play | pause / resume |
+| ◀◀ / ▶▶ | – | seek 30 s |
+| 0–9 | jump to a letter (A–Z sorting) | jump to 0–90 % |
+| CH ▲ / CH ▼ | three rows up / down | – |
+| Red | search | – |
+| Green | only unwatched | – |
+| Yellow | sort order | – |
+| Blue | settings | – |
+| Back | back (twice on the home screen: exit) | stop |
+
+Comics: ◀ ▶ turn pages, OK switches between whole page and full width.
+EPUB: ◀ ▶ pages, ▲ ▼ chapters, OK font size.
+
+## Notes
+
+- Seeking in a transcoded file restarts the transcode, so it takes a moment.
+- Image subtitles (PGS, DVD) are not supported.
+- AVPlay on Tizen 2.3 only plays whole-number speeds (1×, 2×, 4×).
+- Reading books needs the "allow downloads" permission for the Jellyfin user.
+
+## Project layout
+
+| Path | Content |
+| --- | --- |
+| `app.js`, `index.html`, `style.css` | the app |
+| `config.xml` | Tizen widget manifest |
+| `native/` | NaCl module: source, prebuilt `dist/` |
+| `nix/` | Nix packages: NaCl SDK, module, sdb, PC test |
+| `tools/tizen-sign.js` | writes the widget signatures |
+| `flake.nix` | build, sign and install commands |

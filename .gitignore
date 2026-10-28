@@ -1,0 +1,15 @@
+result
+result-*
+*.p12
+password.txt
+
+# local-only folders, not part of the app
+/Service Menu/
+/null/
+/research/
+
+# signing material and signed output
+/certs/
+JellyfinLite-signed.wgt
+.tv-ip
+JellyfinLite.wgt

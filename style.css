@@ -1,0 +1,811 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #0b0b0b;
+  color: #eeeeee;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+}
+#topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  line-height: 64px;
+  background: #151515;
+  border-bottom: 1px solid #2a2a2a;
+  padding: 0 24px;
+  font-size: 24px;
+}
+/* official Jellyfin banner (jellyfin-ux branding, CC BY-SA 4.0) */
+#brand { margin-right: 28px; }
+#brand img { width: 108px; height: 36px; vertical-align: middle; margin-top: -4px; }
+#crumb { color: #cccccc; }
+#user { float: right; color: #888888; font-size: 19px; }
+#content {
+  position: fixed;
+  top: 65px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 10px 20px 90px 20px;
+}
+.grid { text-align: left; }
+.card {
+  display: inline-block;
+  vertical-align: top;
+  width: 200px;
+  margin: 10px 12px;
+  padding: 8px;
+  text-align: center;
+  background: #141414;
+  border: 4px solid #141414;
+  border-radius: 8px;
+}
+.card.focused, .tile.focused, .btn.focused {
+  border-color: #4fc3f7;
+  background: #1d2b36;
+}
+.poster {
+  width: 200px;
+  height: 300px;
+  background: #222222;
+  overflow: hidden;
+  margin: 0 auto 8px auto;
+}
+.poster img { width: 200px; height: 300px; }
+.cardtitle {
+  font-size: 18px;
+  line-height: 22px;
+  height: 44px;
+  overflow: hidden;
+  color: #ffffff;
+}
+.cardsub { font-size: 15px; color: #999999; margin-top: 4px; }
+.tile {
+  display: inline-block;
+  vertical-align: top;
+  width: 280px;
+  height: 120px;
+  line-height: 120px;
+  margin: 10px 12px;
+  text-align: center;
+  font-size: 26px;
+  background: #1b2a3a;
+  border: 4px solid #1b2a3a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.detail { max-width: 1200px; }
+.detailposter {
+  float: left;
+  width: 300px;
+  height: 450px;
+  background: #222222;
+  margin-right: 32px;
+  overflow: hidden;
+}
+.detailposter img { width: 300px; height: 450px; }
+.detailinfo { margin-left: 340px; }
+.detailtitle { font-size: 36px; line-height: 42px; color: #ffffff; margin-bottom: 10px; }
+.detailmeta { font-size: 20px; color: #aaaaaa; margin-bottom: 18px; }
+.overview { font-size: 19px; line-height: 27px; color: #dddddd; }
+.btn {
+  display: inline-block;
+  min-width: 180px;
+  padding: 16px 26px;
+  margin: 22px 14px 0 0;
+  font-size: 24px;
+  text-align: center;
+  color: #ffffff;
+  background: #234;
+  border: 4px solid #234;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn.primary { background: #0d47a1; border-color: #0d47a1; }
+.btn.primary.focused { border-color: #4fc3f7; background: #1565c0; }
+.btn.danger { background: #5a1f1f; border-color: #5a1f1f; }
+.btn.danger.focused { background: #7a2a2a; border-color: #4fc3f7; }
+.btn.subtle { background: #222222; border-color: #222222; font-size: 18px; padding: 10px 20px; margin-top: 26px; }
+.btn.subtle.focused { background: #1d2b36; border-color: #4fc3f7; }
+.center { text-align: center; }
+.loginbox {
+  width: 760px;
+  margin: 36px auto 0 auto;
+  padding: 30px 40px 26px 40px;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  text-align: center;
+}
+.loginbox.wide { width: 900px; margin-top: 20px; padding-top: 24px; }
+/* profile selection: room for 7 profiles in a row */
+.loginbox.people { width: 1100px; margin-top: 24px; padding-left: 20px; padding-right: 20px; }
+.loginbox.people .profilerow { white-space: nowrap; }
+.loginbox.compact { margin-top: 10px; padding-top: 18px; padding-bottom: 16px; }
+.loginbox.compact .logintitle { font-size: 32px; }
+.loginbox.compact .loginsub { margin-bottom: 8px; }
+.loginbox.compact .profilecard { padding: 8px 6px 6px 6px; margin: 4px 6px; }
+.loginbox.compact .profileavatar { width: 68px; height: 68px; line-height: 68px; font-size: 30px; }
+.loginbox.compact .loginbtns { margin-top: 12px; }
+.loginbox.compact .loginstatus { margin-top: 10px; }
+.logintitle { font-size: 38px; color: #ffffff; margin-bottom: 6px; }
+.loginsub { font-size: 19px; color: #9fb3c2; line-height: 26px; margin-bottom: 20px; }
+.loginmsg {
+  margin: -6px auto 16px auto;
+  padding: 8px 14px;
+  font-size: 19px;
+  color: #ffb4a8;
+  background: #3a1a17;
+  border-radius: 6px;
+}
+.loginlabel { width: 70%; margin: 12px auto 0 auto; text-align: left; font-size: 16px; color: #9a9a9a; }
+.loginbox.wide .loginlabel, .loginbox.wide .field { width: 82%; }
+.loginbtns { margin-top: 22px; }
+.loginbtns .btn { margin: 0 8px; min-width: 170px; }
+.loginstatus { margin-top: 20px; font-size: 15px; color: #6f6f6f; }
+.profiles { margin: 4px 0 6px 0; }
+.profilerow { text-align: center; }
+.profilecard {
+  display: inline-block;
+  vertical-align: top;
+  width: 128px;
+  margin: 6px 6px;
+  padding: 14px 6px 10px 6px;
+  background: #1b1b1b;
+  border: 3px solid #1b1b1b;
+  border-radius: 10px;
+  text-align: center;
+}
+.profilecard.focused { border-color: #4fc3f7; background: #1d2b36; }
+.profileavatar {
+  display: block;
+  position: relative;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto;
+  line-height: 88px;
+  border-radius: 50%;
+  background: #00a4dc;
+  color: #ffffff;
+  text-align: center;
+  font-size: 38px;
+  overflow: hidden;
+}
+.profileavatar img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.profileavatar.big { width: 110px; height: 110px; line-height: 110px; font-size: 48px; margin-bottom: 12px; }
+.profilename {
+  display: block;
+  margin: 8px 0 0 0;
+  font-size: 18px;
+  line-height: 22px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.code {
+  font-size: 80px;
+  letter-spacing: 12px;
+  color: #ffffff;
+  margin: 18px 0;
+  font-family: monospace;
+}
+.field {
+  display: block;
+  width: 70%;
+  margin: 6px auto 0 auto;
+  padding: 11px 14px;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  font-size: 23px;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #444444;
+}
+.hidden { display: none; }
+#player {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+  z-index: 50;
+}
+#video { width: 100%; height: 100%; background: #000000; }
+#playerbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 84px;
+  line-height: 84px;
+  padding: 0 24px;
+  background: rgba(0, 0, 0, 0.72);
+}
+#ptitle { font-size: 22px; color: #ffffff; }
+#pback {
+  float: right;
+  margin-top: 18px;
+  padding: 12px 24px;
+  font-size: 20px;
+  color: #ffffff;
+  background: #234;
+  border: 2px solid #4fc3f7;
+  border-radius: 6px;
+}
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  margin-left: -250px;
+  width: 500px;
+  padding: 18px;
+  text-align: center;
+  font-size: 22px;
+  background: #263238;
+  border: 2px solid #4fc3f7;
+  border-radius: 8px;
+  z-index: 100;
+}
+.loading { font-size: 28px; color: #aaaaaa; text-align: center; margin-top: 100px; }
+.error { font-size: 26px; color: #ff8a80; text-align: center; margin-top: 100px; }
+
+/* native AVPlay video plane */
+#av-player {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  z-index: 0;
+}
+#topbar, #content { z-index: 2; }
+
+/* login focus */
+.field.focused {
+  border-color: #4fc3f7;
+  background: #001a2a;
+}
+
+/* library tile images */
+.tile { position: relative; line-height: normal; text-align: left; }
+.tileimg { position: absolute; left: 0; top: 0; width: 280px; height: 120px; }
+.tilelabel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: 38px;
+  line-height: 38px;
+  padding: 0 10px;
+  background: rgba(0, 0, 0, 0.65);
+  font-size: 21px;
+  color: #ffffff;
+  text-align: center;
+}
+
+/* AVPlay control overlay */
+#playerUi {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  background: transparent;
+}
+#playerTop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  line-height: 70px;
+  padding: 0 24px;
+  background: rgba(0, 0, 0, 0.45);
+}
+#ptitle { font-size: 24px; color: #ffffff; }
+#playerBottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 24px 22px 24px;
+  background: rgba(0, 0, 0, 0.65);
+}
+#progress {
+  height: 8px;
+  background: #444444;
+  border-radius: 4px;
+  overflow: hidden;
+}
+#progressFill { width: 0%; height: 8px; background: #4fc3f7; }
+#playerInfo { margin-top: 10px; font-size: 18px; color: #dddddd; }
+#ptime { margin-right: 26px; color: #ffffff; }
+#phint { color: #aaaaaa; }
+
+/* library tiles are 16:9 */
+.tile { height: 158px; }
+.tileimg { height: 158px; }
+
+/* episode thumbnails are 16:9, not 2:3 posters */
+.poster.landscape { height: 112px; }
+.poster.landscape img { height: 112px; }
+
+/* seek preview (Jellyfin trickplay) */
+#seekPreview {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 360px;
+  margin-left: -188px;
+  margin-top: -120px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #4fc3f7;
+  border-radius: 6px;
+  text-align: center;
+  z-index: 6;
+}
+#seekImg {
+  width: 348px;
+  height: 196px;
+  margin: 0 auto;
+  background-color: #000000;
+  background-repeat: no-repeat;
+}
+#seekTime { font-size: 22px; color: #ffffff; padding-top: 4px; }
+
+/* landscape detail poster */
+.detailposter.landscape { height: 169px; }
+.detailposter.landscape img { height: 169px; }
+
+/* seek preview sits just above the progress bar */
+#seekPreview {
+  top: auto;
+  bottom: 110px;
+  margin-top: 0;
+}
+
+/* loading spinner */
+#loadingSpinner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  margin-left: -86px;
+  margin-top: -54px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.82);
+  border: 2px solid #4fc3f7;
+  border-radius: 10px;
+  z-index: 8;
+}
+.spinner {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border: 6px solid #334455;
+  border-top-color: #4fc3f7;
+  border-radius: 50%;
+  -webkit-animation: tspin 1s linear infinite;
+  animation: tspin 1s linear infinite;
+}
+@-webkit-keyframes tspin {
+  from { -webkit-transform: rotate(0deg); }
+  to { -webkit-transform: rotate(360deg); }
+}
+@keyframes tspin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+/* "Ruhige Darstellung": lower and flatten the UI's average brightness */
+body.calm { background: #181818; }
+body.calm #topbar { background: #1d1d1d; }
+body.calm #content { background: transparent; }
+body.calm .poster img,
+body.calm .detailposter img,
+body.calm .tileimg {
+  opacity: 0.78;
+}
+body.calm .tile { background: #242424; border-color: #242424; }
+body.calm .tile.focused {
+  background: #1d2b36;
+  border-color: #4fc3f7;
+}
+body.calm .cardtitle,
+body.calm .detailtitle,
+body.calm .tilelabel {
+  color: #d6d6d6;
+}
+body.calm .overview { color: #c8c8c8; }
+body.calm .loginbox { background: #1b1b1b; border-color: #333333; }
+
+/* ---------- 0.6: topbar clock, hint bar ---------- */
+#clock { float: right; color: #cccccc; font-size: 22px; margin-left: 28px; }
+#user { margin-left: 10px; }
+#content { bottom: 52px; padding-bottom: 40px; }
+#focussink { position: fixed; left: -10px; top: -10px; width: 1px; height: 1px; overflow: hidden; }
+#hintbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 52px;
+  line-height: 52px;
+  padding: 0 24px;
+  background: #121212;
+  border-top: 1px solid #2a2a2a;
+  font-size: 18px;
+  color: #9a9a9a;
+  white-space: nowrap;
+  overflow: hidden;
+  z-index: 3;
+}
+.hint { margin-right: 30px; }
+.key {
+  display: inline-block;
+  padding: 0 8px;
+  line-height: 26px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #dddddd;
+  background: #2a2a2a;
+  border: 1px solid #444444;
+  border-radius: 4px;
+}
+.ck {
+  display: inline-block;
+  width: 22px;
+  height: 14px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-top: -3px;
+}
+.ck.red { background: #e53935; }
+.ck.green { background: #43a047; }
+.ck.yellow { background: #fdd835; }
+.ck.blue { background: #1e88e5; }
+
+/* ---------- home rows ---------- */
+.home { padding-top: 4px; }
+.row { margin-bottom: 8px; }
+.rowtitle { font-size: 26px; color: #ffffff; margin: 10px 0 0 14px; }
+.rowscroll {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 0 4px 0;
+}
+.rowinner { white-space: nowrap; }
+.rowinner .card, .rowinner .tile { white-space: normal; }
+
+/* cards: badges, progress, wide variant */
+.poster { position: relative; }
+.card.wide { width: 300px; }
+.poster.wide { width: 300px; height: 169px; }
+.poster.wide img { width: 300px; height: 169px; }
+.badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 30px;
+  height: 30px;
+  line-height: 30px;
+  padding: 0 4px;
+  border-radius: 15px;
+  background: #0d47a1;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: bold;
+  text-align: center;
+}
+.badge.done { background: #2e7d32; }
+.cardprogress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.6);
+}
+.cardprogressfill { height: 6px; background: #4fc3f7; }
+
+
+/* details */
+.detail { padding-top: 10px; }
+.detailposter { position: relative; }
+.detailseries { font-size: 24px; color: #4fc3f7; margin-bottom: 4px; }
+.detailgenres { font-size: 19px; color: #8aa0b0; margin: -8px 0 14px 0; }
+.detailprogress { width: 420px; height: 6px; background: #333333; border-radius: 3px; overflow: hidden; }
+.detailprogressfill { height: 6px; background: #4fc3f7; }
+.btnrow { margin: 0 0 26px 0; }
+.btnrow .btn { min-width: 0; }
+
+.loginbox .small { font-size: 15px; color: #777777; margin: 24px 0 0 0; }
+
+/* player overlay */
+#playerTop { height: auto; line-height: normal; padding: 18px 28px; }
+#ptitle { font-size: 28px; color: #ffffff; }
+#psub { font-size: 20px; color: #bbbbbb; margin-top: 4px; }
+#pend { margin-right: 26px; color: #bbbbbb; }
+#pauseIcon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  margin: -48px 0 0 -48px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+}
+#pauseIcon span {
+  position: absolute;
+  top: 28px;
+  width: 12px;
+  height: 40px;
+  background: #ffffff;
+}
+#pauseIcon span:first-child { left: 32px; }
+#pauseIcon span:last-child { left: 52px; }
+#pauseIcon.hidden { display: none; }
+
+/* keep toasts clear of the hint bar and the player progress bar */
+#toast { bottom: 130px; }
+.btnrow .btn { padding: 14px 22px; margin: 14px 12px 0 0; font-size: 22px; }
+
+
+/* ---------- top bar: search + profile ---------- */
+#user { float: none; margin-left: 0; color: #dddddd; font-size: 20px; }
+#topnav { float: right; }
+.topbtn {
+  display: inline-block;
+  vertical-align: middle;
+  height: 44px;
+  line-height: 44px;
+  margin: 0 0 0 10px;
+  padding: 0 14px;
+  border: 3px solid transparent;
+  border-radius: 24px;
+}
+.topbtn.focused { border-color: #4fc3f7; background: #1d2b36; }
+#tsearch { width: 44px; padding: 0; position: relative; }
+.searchicon {
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  width: 15px;
+  height: 15px;
+  border: 3px solid #cccccc;
+  border-radius: 50%;
+}
+.searchicon:after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 16px;
+  width: 9px;
+  height: 3px;
+  background: #cccccc;
+  -webkit-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+.topbtn.focused .searchicon { border-color: #4fc3f7; }
+.topbtn.focused .searchicon:after { background: #4fc3f7; }
+#tavatar {
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+  width: 34px;
+  height: 34px;
+  line-height: 34px;
+  margin: -4px 10px 0 -6px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #0d47a1;
+  color: #ffffff;
+  font-size: 17px;
+  text-align: center;
+}
+#tavatar img { position: absolute; left: 0; top: 0; width: 34px; height: 34px; }
+
+
+/* ---------- player: subtitles + options menu ---------- */
+#subtitles {
+  position: fixed;
+  left: 120px;
+  right: 120px;
+  bottom: 70px;
+  z-index: 6;
+  text-align: center;
+  font-size: 40px;
+  line-height: 52px;
+  color: #ffffff;
+}
+#subtitles.raised { bottom: 150px; }
+#subtitles span {
+  display: inline-block;
+  padding: 2px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+}
+#playerMenu {
+  position: fixed;
+  top: 110px;
+  right: 40px;
+  width: 620px;
+  z-index: 7;
+  padding: 10px 0;
+  background: rgba(16, 20, 26, 0.94);
+  border: 2px solid #2f4a5e;
+  border-radius: 10px;
+}
+.pmtitle { padding: 8px 26px 12px 26px; font-size: 26px; color: #4fc3f7; }
+.pmrow {
+  padding: 0 26px;
+  height: 58px;
+  line-height: 58px;
+  font-size: 23px;
+  color: #eeeeee;
+  white-space: nowrap;
+  overflow: hidden;
+  border-left: 6px solid transparent;
+}
+.pmrow.focused { background: #1d2b36; border-left-color: #4fc3f7; }
+.pmrow.info { color: #999999; }
+.pmcheck { display: inline-block; width: 34px; color: #4fc3f7; }
+.pmvalue { float: right; color: #aaaaaa; max-width: 330px; overflow: hidden; text-overflow: ellipsis; }
+
+
+/* ---------- search field in the top bar + result panel ---------- */
+#tsinput {
+  display: none;
+  vertical-align: middle;
+  width: 400px;
+  height: 38px;
+  margin: 0 6px 0 0;
+  padding: 0 16px;
+  font-size: 20px;
+  color: #ffffff;
+  background: #000000;
+  border: 3px solid #444444;
+  border-radius: 22px;
+}
+#tsinput.open { display: inline-block; }
+#tsinput.open.focused { border-color: #4fc3f7; background: #001a2a; }
+#searchPanel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 65px;
+  z-index: 4;
+  padding: 4px 20px 12px 20px;
+  background: #0c0f14;
+  border-bottom: 2px solid #2f4a5e;
+}
+#spstatus { margin: 6px 0 0 14px; font-size: 19px; color: #aaaaaa; }
+
+/* ---------- settings drop-down under the profile ---------- */
+#settingsMenu {
+  position: fixed;
+  top: 72px;
+  right: 24px;
+  width: 560px;
+  z-index: 7;
+  padding: 10px 0 0 0;
+  background: rgba(16, 20, 26, 0.97);
+  border: 2px solid #2f4a5e;
+  border-radius: 10px;
+}
+.pmrow.danger { color: #ff8a80; }
+.pmfoot {
+  margin-top: 8px;
+  padding: 10px 26px 12px 26px;
+  border-top: 1px solid #2a3540;
+  font-size: 16px;
+  line-height: 24px;
+  color: #8a96a0;
+}
+
+/* ---------- page background + optional backdrop ----------
+   #backdrop is always a solid layer in the page colour: the AVPlay plane
+   behind the page is black, and a black background makes the TV's
+   brightness limiter swing (what "Ruhige Darstellung" prevents). */
+#backdrop {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  background: #0b0b0b;
+}
+body.calm #backdrop { background: #181818; }
+.bd {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+  opacity: 0;
+  -webkit-transition: opacity 1.2s ease;
+  transition: opacity 1.2s ease;
+  /* own compositing layer: the fade doesn't repaint the page above it */
+  -webkit-transform: translateZ(0);
+}
+.bd.on { opacity: 0.28; }
+body.calm .bd.on { opacity: 0.16; }
+
+/* search panel: two compact rows (library, Seerr) must fit 1280x720 */
+.sprow { margin-bottom: 2px; }
+.sptitle { margin: 6px 0 0 14px; font-size: 19px; color: #9fb3c2; }
+#searchPanel .card { width: 120px; margin: 6px 8px; padding: 6px; }
+#searchPanel .poster { width: 120px; height: 180px; margin-bottom: 4px; }
+#searchPanel .poster img { width: 120px; height: 180px; }
+#searchPanel .poster.landscape { height: 68px; }
+#searchPanel .poster.landscape img { height: 68px; }
+#searchPanel .cardtitle { font-size: 15px; line-height: 19px; height: 19px; white-space: nowrap; text-overflow: ellipsis; }
+#searchPanel .cardsub { font-size: 13px; margin-top: 2px; white-space: nowrap; overflow: hidden; }
+#searchPanel .badge { min-width: 22px; height: 22px; line-height: 22px; font-size: 13px; border-radius: 11px; top: 4px; right: 4px; }
+.badge.seerr { background: #6a4c93; padding: 0 8px; border-radius: 4px; font-weight: normal; }
+#searchPanel .badge.seerr { left: 4px; right: 4px; border-radius: 3px; font-size: 12px; }
+
+/* ---------- book reader ---------- */
+#reader { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 6; background: #000000; }
+#reader.epub { background: #181818; color: #d8d8d8; }
+#rview { position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; }
+#rimg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+#rimg.fitwidth { position: static; display: block; width: 100%; max-width: none; max-height: none; }
+#rinfo, #rhint {
+  position: absolute;
+  bottom: 14px;
+  padding: 4px 12px;
+  font-size: 17px;
+  color: #cccccc;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: 6px;
+}
+#rinfo { right: 20px; }
+#rhint { left: 20px; }
+#rhint.fade { display: none; }
+#epub { position: absolute; left: 80px; right: 80px; top: 44px; bottom: 64px; overflow: hidden; }
+#epubInner {
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.5;
+  text-align: justify;
+}
+#epubInner p { margin: 0 0 0.55em 0; }
+#epubInner h1, #epubInner h2, #epubInner h3 { color: #ffffff; font-weight: normal; line-height: 1.25; }
+#epubInner img { display: block; max-width: 100%; max-height: 560px; margin: 0.5em auto; }
+.badge.seerr { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* top bar stays one line: long titles are cut so search/profile/clock fit */
+#topbar { white-space: nowrap; overflow: hidden; }
+#crumb {
+  display: inline-block;
+  vertical-align: top;
+  max-width: 640px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#topbar.searching #crumb { max-width: 220px; }

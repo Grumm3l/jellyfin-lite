@@ -1,0 +1,3 @@
+Small stand-ins so MuPDF compiles against the NaCl newlib C library:
+memory.h (old alias of string.h) and mupdf_compat.h (avoids newlib's quad_t
+clashing with MuPDF's fz_quad naming).

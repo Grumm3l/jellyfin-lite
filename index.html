@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: file: filesystem: ws: wss:;">
+<title>Jellyfin Lite</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<object id="av-player" type="application/avplayer"></object>
+<div id="backdrop"><img id="bdA" class="bd" alt=""><img id="bdB" class="bd" alt=""></div>
+<div id="topbar">
+  <span id="brand"><img src="logo.png" alt="Jellyfin"></span>
+  <span id="crumb"></span>
+  <span id="clock"></span>
+  <span id="topnav" style="display:none">
+    <input id="tsinput" type="text" placeholder="Filme, Serien, B&uuml;cher ..."><span id="tsearch" class="topbtn"><i class="searchicon"></i></span><span id="tprofile" class="topbtn"><span id="tavatar"></span><span id="user"></span></span>
+  </span>
+</div>
+<div id="content"></div>
+<div id="hintbar" class="hidden"></div>
+<a id="focussink" href="#" tabindex="-1"></a>
+<div id="searchPanel" class="hidden"><div id="sprows"></div><div id="spstatus"></div></div>
+<div id="settingsMenu" class="hidden"></div>
+<div id="reader" class="hidden"></div>
+<div id="playerUi" class="hidden">
+  <div id="playerTop"><div id="ptitle"></div><div id="psub"></div></div>
+  <div id="pauseIcon" class="hidden"><span></span><span></span></div>
+  <div id="seekPreview" class="hidden">
+    <div id="seekImg"></div>
+    <div id="seekTime"></div>
+  </div>
+  <div id="playerBottom">
+    <div id="progress"><div id="progressFill"></div></div>
+    <div id="playerInfo"><span id="ptime"></span><span id="pend"></span><span id="phint"></span></div>
+  </div>
+</div>
+<div id="subtitles"></div>
+<div id="playerMenu" class="hidden"></div>
+<div id="loadingSpinner" class="hidden">
+  <div class="spinner"></div>
+</div>
+<div id="toast" class="hidden"></div>
+<script src="$WEBAPIS/webapis/webapis.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
