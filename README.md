@@ -86,6 +86,10 @@ Other commands:
 | `nix build` | unsigned package, for signing with Tizen Studio |
 | `nix develop` | shell with all of the above and `sdb` |
 
+The [releases](https://github.com/Grumm3l/jellyfin-lite/releases) contain the
+unsigned package. Pushing a tag such as `v0.12.0` (matching the version in
+`config.xml`) builds it and publishes a release.
+
 ## TV remote
 
 | Key | Browsing | Player |

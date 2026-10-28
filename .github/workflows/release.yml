@@ -1,0 +1,44 @@
+name: Release
+
+# push a tag like v0.12.0 to build the package and publish a release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+
+      - name: Check version
+        run: |
+          version=$(grep -o ' version="[^"]*"' config.xml | head -1 | cut -d'"' -f2)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $version in config.xml"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build package
+        run: |
+          nix build .#wgt
+          cp result "JellyfinLite-$VERSION.wgt"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'EOF'
+          The package is unsigned. Samsung TVs only install packages signed with
+          a certificate for that TV, so sign it with your own author and
+          distributor certificates (Tizen Studio Certificate Manager) before
+          installing, or build and install from source with `nix run . -- <TV_IP>`.
+          EOF
+          gh release create "$GITHUB_REF_NAME" "JellyfinLite-$VERSION.wgt" \
+            --title "Jellyfin Lite $VERSION" --notes-file notes.md --generate-notes
