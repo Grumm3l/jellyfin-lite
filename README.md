@@ -76,23 +76,22 @@ Other commands:
 | `nix develop` | shell with all of the above and `sdb` |
 
 The [releases](https://github.com/Grumm3l/jellyfin-lite/releases) contain the
-unsigned package. Pushing a tag such as `v0.12.0` (matching the version in
-`config.xml`) builds it and publishes a release.
+unsigned package.
 
 ## TV remote
 
 | Key | Browsing | Player |
 | --- | --- | --- |
-| Arrows | move (▲ at the top: search, profile) | ◀ ▶ seek, ▼ options |
+| Arrows | move (▲ at the top: search, profile) | ◀ ▶ seek, ▲ ▼ show progress |
 | OK | open | pause / resume |
 | ▶ / ▶❚❚ | play | pause / resume |
 | ◀◀ / ▶▶ | – | seek 30 s |
 | 0–9 | jump to a letter (A–Z sorting) | jump to 0–90 % |
-| CH ▲ / CH ▼ | three rows up / down | – |
+| CH ▲ / CH ▼ | three rows up / down | next / previous episode |
 | Red | search | – |
 | Green | only unwatched | – |
 | Yellow | sort order | – |
-| Blue | settings | – |
+| Blue | settings | playback options |
 | Back | back (twice on the home screen: exit) | stop |
 
 Comics: ◀ ▶ turn pages, OK switches between whole page and full width.

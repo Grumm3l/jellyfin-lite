@@ -40,7 +40,7 @@
     } catch (e) {}
     return id || 'jflite-tv';
   }());
-  var VERSION = '0.12.0';
+  var VERSION = '0.12.1';
   var AUTH = 'MediaBrowser Client="' + CLIENT + '", Device="' + DEVICE +
              '", DeviceId="' + DEVICEID + '", Version="' + VERSION + '"';
   var REQUEST_TIMEOUT = 20000;
@@ -3274,7 +3274,10 @@
     if (state.seekTarget !== null) {
       phint.textContent = T('Spule zu {0} ...', fmtTime(state.seekTarget));
     } else {
-      phint.textContent = (state.playerPaused ? T('OK: Weiter') : T('OK: Pause')) + '  ·  ' + T('◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp');
+      var it = state.playerItem;
+      phint.textContent = [state.playerPaused ? T('OK: Weiter') : T('OK: Pause'), T('◀ ▶: Spulen')]
+        .concat(it && it.Type === 'Episode' && it.SeriesId ? [T('CH ▲ ▼: Folge')] : [])
+        .concat([T('Blau: Optionen'), T('Zurück: Stopp')]).join('  ·  ');
     }
     if (st === 'PLAYING' && now() - state.lastReport > 10000) reportProgress('TimeUpdate');
   }
@@ -3643,6 +3646,8 @@
         closeMenu();
         it.action();
       }
+    } else if (k === K_BLUE) {
+      closeMenu();
     } else if (k === K_LEFT || isBackKey(k) || k === K_INFO) {
       state.menuStack.pop();
       if (menuOpen()) {
@@ -3943,6 +3948,38 @@
     });
   }
 
+  /* CH ▲ / CH ▼ in the player: next (dir 1) or previous (dir -1) episode */
+  function switchEpisode(dir) {
+    var item = state.playerItem;
+    if (!item || item.Type !== 'Episode' || !item.SeriesId || state.episodeSwitch) return;
+    var token = state.playToken;
+    state.episodeSwitch = true;
+    getJson('/Shows/' + encodeURIComponent(item.SeriesId) + '/Episodes?' + uidParam() +
+      '&adjacentTo=' + encodeURIComponent(item.Id) + FIELDS,
+      function (err, data) {
+        state.episodeSwitch = false;
+        if (token !== state.playToken || state.stopping || state.view !== 'player') return;
+        var list = (!err && data && data.Items) || [];
+        var target = null;
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].Id === item.Id) { target = list[i + dir] || null; break; }
+        }
+        if (!target) {
+          showToast(err ? T('Folge konnte nicht geladen werden') : (dir > 0 ? T('Keine nächste Folge') : T('Keine vorherige Folge')));
+          return;
+        }
+        var pos = curPos();
+        try { webapis.avplay.pause(); } catch (e) {}
+        stopUiTimer();
+        showPlayerLoading();
+        reportStopped(pos);
+        stopEncoding();
+        state.homeDirty = true;
+        showToast((episodeCode(target) ? episodeCode(target) + ' ' : '') + (target.Name || ''));
+        playItem(target, { chain: true });
+      });
+  }
+
   function findNextEpisode(item, cb) {
     getJson('/Shows/' + encodeURIComponent(item.SeriesId) + '/Episodes?' + uidParam() +
       '&startItemId=' + encodeURIComponent(item.Id) + '&limit=2' + FIELDS,
@@ -4211,12 +4248,16 @@
       e.preventDefault();
       var dur = curDuration();
       if (dur > 0) seekTo(dur * (k - 48) / 10);
-    } else if (k === K_DOWN || k === K_INFO) {
+    } else if (k === K_BLUE || k === K_INFO) {
       e.preventDefault();
       openMenu();
-    } else if (k === K_UP) {
+    } else if (k === K_UP || k === K_DOWN) {
+      /* only shows the progress bar (showPlayerUi above) */
       e.preventDefault();
       updatePlayerUi();
+    } else if (k === K_CH_UP || k === K_CH_DOWN) {
+      e.preventDefault();
+      switchEpisode(k === K_CH_UP ? 1 : -1);
     }
   }
 

@@ -207,7 +207,13 @@ window.JF_I18N = {
     "„{0}“ wurde angefragt.": "“{0}” was requested.",
     "◀ ▶ Blättern  ·  OK: Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen": "◀ ▶ turn pages  ·  OK: page / width  ·  0–9: jump  ·  Back: close",
     "◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen": "◀ ▶ turn pages  ·  ▲ ▼ chapters  ·  OK: font size  ·  Back: close",
-    "◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp": "◀ ▶: seek  ·  ▼: options  ·  Back: stop"
+    "◀ ▶: Spulen": "◀ ▶: seek",
+    "CH ▲ ▼: Folge": "CH ▲ ▼: episode",
+    "Blau: Optionen": "Blue: options",
+    "Zurück: Stopp": "Back: stop",
+    "Keine nächste Folge": "No next episode",
+    "Keine vorherige Folge": "No previous episode",
+    "Folge konnte nicht geladen werden": "Could not load the episode"
   },
   fr: {
     "1 Staffel": "1 saison",
@@ -414,7 +420,13 @@ window.JF_I18N = {
     "„{0}“ wurde angefragt.": "« {0} » a été demandé.",
     "◀ ▶ Blättern  ·  OK: Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen": "◀ ▶ tourner les pages  ·  OK : page / largeur  ·  0–9 : aller à  ·  Retour : fermer",
     "◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen": "◀ ▶ tourner les pages  ·  ▲ ▼ chapitres  ·  OK : taille du texte  ·  Retour : fermer",
-    "◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp": "◀ ▶ : avancer/reculer  ·  ▼ : options  ·  Retour : arrêter"
+    "◀ ▶: Spulen": "◀ ▶ : avancer/reculer",
+    "CH ▲ ▼: Folge": "CH ▲ ▼ : épisode",
+    "Blau: Optionen": "Bleu : options",
+    "Zurück: Stopp": "Retour : arrêter",
+    "Keine nächste Folge": "Pas d'épisode suivant",
+    "Keine vorherige Folge": "Pas d'épisode précédent",
+    "Folge konnte nicht geladen werden": "Impossible de charger l'épisode"
   },
   es: {
     "1 Staffel": "1 temporada",
@@ -621,7 +633,13 @@ window.JF_I18N = {
     "„{0}“ wurde angefragt.": "Se ha solicitado «{0}».",
     "◀ ▶ Blättern  ·  OK: Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen": "◀ ▶ pasar páginas  ·  OK: página / ancho  ·  0–9: saltar  ·  Volver: cerrar",
     "◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen": "◀ ▶ pasar páginas  ·  ▲ ▼ capítulos  ·  OK: tamaño de letra  ·  Volver: cerrar",
-    "◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp": "◀ ▶: avanzar/retroceder  ·  ▼: opciones  ·  Volver: detener"
+    "◀ ▶: Spulen": "◀ ▶: avanzar/retroceder",
+    "CH ▲ ▼: Folge": "CH ▲ ▼: episodio",
+    "Blau: Optionen": "Azul: opciones",
+    "Zurück: Stopp": "Volver: detener",
+    "Keine nächste Folge": "No hay episodio siguiente",
+    "Keine vorherige Folge": "No hay episodio anterior",
+    "Folge konnte nicht geladen werden": "No se pudo cargar el episodio"
   },
   it: {
     "1 Staffel": "1 stagione",
@@ -828,7 +846,13 @@ window.JF_I18N = {
     "„{0}“ wurde angefragt.": "«{0}» è stato richiesto.",
     "◀ ▶ Blättern  ·  OK: Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen": "◀ ▶ sfoglia  ·  OK: pagina / larghezza  ·  0–9: vai a  ·  Indietro: chiudi",
     "◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen": "◀ ▶ sfoglia  ·  ▲ ▼ capitoli  ·  OK: dimensione testo  ·  Indietro: chiudi",
-    "◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp": "◀ ▶: avanti/indietro  ·  ▼: opzioni  ·  Indietro: stop"
+    "◀ ▶: Spulen": "◀ ▶: avanti/indietro",
+    "CH ▲ ▼: Folge": "CH ▲ ▼: episodio",
+    "Blau: Optionen": "Blu: opzioni",
+    "Zurück: Stopp": "Indietro: stop",
+    "Keine nächste Folge": "Nessun episodio successivo",
+    "Keine vorherige Folge": "Nessun episodio precedente",
+    "Folge konnte nicht geladen werden": "Impossibile caricare l'episodio"
   },
   nl: {
     "1 Staffel": "1 seizoen",
@@ -1035,7 +1059,13 @@ window.JF_I18N = {
     "„{0}“ wurde angefragt.": "‘{0}’ is aangevraagd.",
     "◀ ▶ Blättern  ·  OK: Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen": "◀ ▶ bladeren  ·  OK: pagina / breedte  ·  0–9: springen  ·  Terug: sluiten",
     "◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen": "◀ ▶ bladeren  ·  ▲ ▼ hoofdstukken  ·  OK: lettergrootte  ·  Terug: sluiten",
-    "◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp": "◀ ▶: spoelen  ·  ▼: opties  ·  Terug: stoppen"
+    "◀ ▶: Spulen": "◀ ▶: spoelen",
+    "CH ▲ ▼: Folge": "CH ▲ ▼: aflevering",
+    "Blau: Optionen": "Blauw: opties",
+    "Zurück: Stopp": "Terug: stoppen",
+    "Keine nächste Folge": "Geen volgende aflevering",
+    "Keine vorherige Folge": "Geen vorige aflevering",
+    "Folge konnte nicht geladen werden": "Aflevering kon niet worden geladen"
   },
   pl: {
     "1 Staffel": "1 sezon",
@@ -1242,7 +1272,13 @@ window.JF_I18N = {
     "„{0}“ wurde angefragt.": "Zgłoszono „{0}”.",
     "◀ ▶ Blättern  ·  OK: Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen": "◀ ▶ przewracanie stron  ·  OK: strona / szerokość  ·  0–9: skok  ·  Wstecz: zamknij",
     "◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen": "◀ ▶ przewracanie stron  ·  ▲ ▼ rozdziały  ·  OK: rozmiar czcionki  ·  Wstecz: zamknij",
-    "◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp": "◀ ▶: przewijanie  ·  ▼: opcje  ·  Wstecz: zatrzymaj"
+    "◀ ▶: Spulen": "◀ ▶: przewijanie",
+    "CH ▲ ▼: Folge": "CH ▲ ▼: odcinek",
+    "Blau: Optionen": "Niebieski: opcje",
+    "Zurück: Stopp": "Wstecz: zatrzymaj",
+    "Keine nächste Folge": "Brak następnego odcinka",
+    "Keine vorherige Folge": "Brak poprzedniego odcinka",
+    "Folge konnte nicht geladen werden": "Nie udało się wczytać odcinka"
   },
   pt: {
     "1 Staffel": "1 temporada",
@@ -1449,6 +1485,12 @@ window.JF_I18N = {
     "„{0}“ wurde angefragt.": "«{0}» foi pedido.",
     "◀ ▶ Blättern  ·  OK: Seite / Breite  ·  0–9: Springen  ·  Zurück: Schließen": "◀ ▶ virar páginas  ·  OK: página / largura  ·  0–9: saltar  ·  Voltar: fechar",
     "◀ ▶ Blättern  ·  ▲ ▼ Kapitel  ·  OK: Schriftgröße  ·  Zurück: Schließen": "◀ ▶ virar páginas  ·  ▲ ▼ capítulos  ·  OK: tamanho da letra  ·  Voltar: fechar",
-    "◀ ▶: Spulen  ·  ▼: Optionen  ·  Zurück: Stopp": "◀ ▶: avançar/recuar  ·  ▼: opções  ·  Voltar: parar"
+    "◀ ▶: Spulen": "◀ ▶: avançar/recuar",
+    "CH ▲ ▼: Folge": "CH ▲ ▼: episódio",
+    "Blau: Optionen": "Azul: opções",
+    "Zurück: Stopp": "Voltar: parar",
+    "Keine nächste Folge": "Sem episódio seguinte",
+    "Keine vorherige Folge": "Sem episódio anterior",
+    "Folge konnte nicht geladen werden": "Não foi possível carregar o episódio"
   }
 };
