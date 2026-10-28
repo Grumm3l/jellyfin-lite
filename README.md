@@ -49,32 +49,21 @@ module.
 ## Requirements
 
 - Samsung TV with Tizen 2.3 in developer mode, with your PC's IP set as host
-- A Samsung author and distributor certificate (the distributor certificate
-  must contain the TV's DUID)
-- [Nix](https://nixos.org) with flakes
+- A Samsung author and distributor certificate (free, see [INSTALL.md](INSTALL.md))
+- [Nix](https://nixos.org) with flakes, or Tizen Studio for the release package
 - A Jellyfin server, reachable over HTTPS (certificate from a public CA) or
   over HTTP in the home network
 
 ## Install
 
-Put the certificates into `certs/`:
-
-| File | Content |
-| --- | --- |
-| `certs/author.p12` | author certificate |
-| `certs/distributor.p12` | distributor certificate |
-| `certs/password.txt` | password of both files |
-
-Then sign, install and start the app:
+See [INSTALL.md](INSTALL.md) for developer mode, certificates and
+installing without Nix. In short, with the certificates in `certs/`:
 
 ```bash
 nix run . -- 192.168.1.50   # IP of the TV; it is remembered in .tv-ip
-nix run .                   # next time
 ```
 
-On first start the app asks for the server address, e.g.
-`jellyfin.example.com` or `http://192.168.1.10:8096`, and optionally the
-Seerr address.
+On first start the app asks for the server address.
 
 Other commands:
 
