@@ -40,7 +40,7 @@
     } catch (e) {}
     return id || 'jflite-tv';
   }());
-  var VERSION = '0.13.0';
+  var VERSION = '0.14.0';
   var AUTH = 'MediaBrowser Client="' + CLIENT + '", Device="' + DEVICE +
              '", DeviceId="' + DEVICEID + '", Version="' + VERSION + '"';
   var REQUEST_TIMEOUT = 20000;
@@ -152,6 +152,7 @@
     playMethod: 'DirectPlay',
     playSessionId: '',
     mediaSourceId: '',
+    sourceChoice: {},  /* item id -> chosen media source (version) */
     startMs: 0,
     reported: false,
     lastReport: 0,
@@ -1167,6 +1168,44 @@
       items[state.menuFocus].action();
       if (state.overlay === 'menu') renderSettingsMenu();
     } else if (isBackKey(k) || k === K_LEFT || k === K_BLUE) {
+      closeOverlay();
+    }
+  }
+
+  /* a list to pick one entry from (e.g. the version of a movie), shown in
+     the middle of the screen; onPick(index) */
+  function openChoice(title, labels, focus, onPick) {
+    if (state.overlay) closeOverlay();
+    blurContentFocus();
+    state.overlay = 'choice';
+    state.choice = { title: title, labels: labels, focus: focus, current: focus, onPick: onPick };
+    renderChoice();
+  }
+
+  function renderChoice() {
+    var c = state.choice;
+    var html = '<div class="pmtitle">' + esc(c.title) + '</div>';
+    for (var i = 0; i < c.labels.length; i++) {
+      html += '<div class="pmrow' + (i === c.focus ? ' focused' : '') + '">' +
+        '<span class="pmcheck">' + (i === c.current ? '✓' : '') + '</span>' +
+        '<span class="pmlabel">' + esc(c.labels[i]) + '</span></div>';
+    }
+    var m = $('settingsMenu');
+    m.innerHTML = html;
+    m.className = 'choice';
+  }
+
+  function handleChoiceKey(e, k) {
+    e.preventDefault();
+    var c = state.choice;
+    if (k === K_UP && c.focus > 0) { c.focus--; renderChoice(); }
+    else if (k === K_DOWN && c.focus < c.labels.length - 1) { c.focus++; renderChoice(); }
+    else if (k === K_ENTER) {
+      if (now() - state.lastActivate < 350) return;
+      state.lastActivate = now();
+      closeOverlay();
+      c.onPick(c.focus);
+    } else if (isBackKey(k) || k === K_LEFT) {
       closeOverlay();
     }
   }
@@ -2411,8 +2450,10 @@
       var poster = el('div', 'poster person');
       poster.appendChild(el('div', 'personinitials', personInitials(p.Name)));
       if (p.PrimaryImageTag) {
+        /* hidden until loaded: an <img> without src draws an empty frame */
         var img = document.createElement('img');
-        img.onerror = function () { this.style.display = 'none'; };
+        img.style.display = 'none';
+        img.onload = function () { this.style.display = ''; };
         img.setAttribute('data-src', imageUrl(p.Id, 'Primary', p.PrimaryImageTag, 240));
         poster.appendChild(img);
       }
@@ -2531,6 +2572,10 @@
       } else {
         addBtn('play', T('Abspielen'), 'primary', function () { playItem(item, { startMs: 0 }); });
       }
+    }
+    if (isPlayable(item) && item.MediaSources && item.MediaSources.length > 1) {
+      var src = pickSource(item.MediaSources, state.sourceChoice[item.Id]);
+      addBtn('version', T('Version: {0}', src.Name || src.Container || '?'), '', function () { chooseVersion(item); });
     }
     if (item.Type === 'Book') {
       var prog = readProgress(item.Id);
@@ -3110,6 +3155,48 @@
     showToast(T('Wiedergabe abgebrochen'));
   }
 
+  /* the media source with this id, else the server's first (preferred) one */
+  function pickSource(list, id) {
+    if (!list || !list.length) return null;
+    for (var i = 0; id && i < list.length; i++) if (list[i].Id === id) return list[i];
+    return list[0];
+  }
+
+  /* "4K  ·  2160p HEVC  ·  12.3 GB" */
+  function sourceLabel(src) {
+    var parts = [src.Name || src.Container || '?'];
+    var streams = src.MediaStreams || [];
+    for (var i = 0; i < streams.length; i++) {
+      var s = streams[i];
+      if (s.Type !== 'Video') continue;
+      var res = s.Height && parts[0].indexOf(s.Height + 'p') < 0 ? s.Height + 'p' : '';  /* not twice: "1080p  ·  1080p" */
+      var v = (res + (s.Codec ? ' ' + s.Codec.toUpperCase() : '')).replace(/^\s+/, '');
+      if (v) parts.push(v);
+      break;
+    }
+    if (src.Size) parts.push((Math.round(src.Size / 1e8) / 10) + ' GB');
+    return parts.join('  ·  ');
+  }
+
+  function chooseVersion(item) {
+    var list = item.MediaSources || [];
+    var cur = pickSource(list, state.sourceChoice[item.Id]);
+    var labels = [];
+    var focus = 0;
+    for (var i = 0; i < list.length; i++) {
+      labels.push(sourceLabel(list[i]));
+      if (list[i] === cur) focus = i;
+    }
+    openChoice(T('Version'), labels, focus, function (i) {
+      state.sourceChoice[item.Id] = list[i].Id;
+      if (state.view === 'details' && state.current === item) {
+        var st = content.scrollTop;
+        renderDetailsBody(item);
+        content.scrollTop = st;
+      }
+    });
+  }
+
   /* opts.startMs: resume position (defaults to the saved position)
      opts.chain: continue in the running player (next episode) */
   function playItem(item, opts) {
@@ -3129,8 +3216,7 @@
         if (opts.chain) stopPlayback();
         return;
       }
-      var src = null;
-      if (data && data.MediaSources && data.MediaSources.length) src = data.MediaSources[0];
+      var src = pickSource(data && data.MediaSources, state.sourceChoice[item.Id]);
       if (!opts.chain) {
         state.playerReturn = snapshot();
       } else if (state.playerReturn && state.playerReturn.view === 'details') {
@@ -3288,7 +3374,7 @@
       if (err) { callback('', ''); return; }
       var data = null;
       try { data = JSON.parse(txt); } catch (e) { callback('', ''); return; }
-      var src = data && data.MediaSources && data.MediaSources[0];
+      var src = pickSource(data && data.MediaSources, state.mediaSourceId);
       callback(src && src.TranscodingUrl ? src.TranscodingUrl : '', (data && data.PlaySessionId) || '');
     });
   }
@@ -4416,6 +4502,7 @@
   function handleKeyDown(e) {
     var k = e.keyCode;
     if (state.overlay === 'menu') { handleMenuOverlayKey(e, k); return; }
+    if (state.overlay === 'choice') { handleChoiceKey(e, k); return; }
     if (state.overlay === 'search') { handleSearchBarKey(e, k); return; }
     if (state.view === 'login') { handleLoginKey(e, k); return; }
     if (state.view === 'player') { handlePlayerKey(e, k); return; }

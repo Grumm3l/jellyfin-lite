@@ -215,7 +215,9 @@ window.JF_I18N = {
     "Keine vorherige Folge": "No previous episode",
     "Folge konnte nicht geladen werden": "Could not load the episode",
     "Besetzung": "Cast",
-    "Titel konnten nicht geladen werden": "Could not load the titles"
+    "Titel konnten nicht geladen werden": "Could not load the titles",
+    "Version": "Version",
+    "Version: {0}": "Version: {0}"
   },
   fr: {
     "1 Staffel": "1 saison",
@@ -430,7 +432,9 @@ window.JF_I18N = {
     "Keine vorherige Folge": "Pas d'épisode précédent",
     "Folge konnte nicht geladen werden": "Impossible de charger l'épisode",
     "Besetzung": "Distribution",
-    "Titel konnten nicht geladen werden": "Impossible de charger les titres"
+    "Titel konnten nicht geladen werden": "Impossible de charger les titres",
+    "Version": "Version",
+    "Version: {0}": "Version : {0}"
   },
   es: {
     "1 Staffel": "1 temporada",
@@ -645,7 +649,9 @@ window.JF_I18N = {
     "Keine vorherige Folge": "No hay episodio anterior",
     "Folge konnte nicht geladen werden": "No se pudo cargar el episodio",
     "Besetzung": "Reparto",
-    "Titel konnten nicht geladen werden": "No se pudieron cargar los títulos"
+    "Titel konnten nicht geladen werden": "No se pudieron cargar los títulos",
+    "Version": "Versión",
+    "Version: {0}": "Versión: {0}"
   },
   it: {
     "1 Staffel": "1 stagione",
@@ -860,7 +866,9 @@ window.JF_I18N = {
     "Keine vorherige Folge": "Nessun episodio precedente",
     "Folge konnte nicht geladen werden": "Impossibile caricare l'episodio",
     "Besetzung": "Cast",
-    "Titel konnten nicht geladen werden": "Impossibile caricare i titoli"
+    "Titel konnten nicht geladen werden": "Impossibile caricare i titoli",
+    "Version": "Versione",
+    "Version: {0}": "Versione: {0}"
   },
   nl: {
     "1 Staffel": "1 seizoen",
@@ -1075,7 +1083,9 @@ window.JF_I18N = {
     "Keine vorherige Folge": "Geen vorige aflevering",
     "Folge konnte nicht geladen werden": "Aflevering kon niet worden geladen",
     "Besetzung": "Cast",
-    "Titel konnten nicht geladen werden": "Titels konden niet worden geladen"
+    "Titel konnten nicht geladen werden": "Titels konden niet worden geladen",
+    "Version": "Versie",
+    "Version: {0}": "Versie: {0}"
   },
   pl: {
     "1 Staffel": "1 sezon",
@@ -1290,7 +1300,9 @@ window.JF_I18N = {
     "Keine vorherige Folge": "Brak poprzedniego odcinka",
     "Folge konnte nicht geladen werden": "Nie udało się wczytać odcinka",
     "Besetzung": "Obsada",
-    "Titel konnten nicht geladen werden": "Nie udało się wczytać tytułów"
+    "Titel konnten nicht geladen werden": "Nie udało się wczytać tytułów",
+    "Version": "Wersja",
+    "Version: {0}": "Wersja: {0}"
   },
   pt: {
     "1 Staffel": "1 temporada",
@@ -1505,6 +1517,8 @@ window.JF_I18N = {
     "Keine vorherige Folge": "Sem episódio anterior",
     "Folge konnte nicht geladen werden": "Não foi possível carregar o episódio",
     "Besetzung": "Elenco",
-    "Titel konnten nicht geladen werden": "Não foi possível carregar os títulos"
+    "Titel konnten nicht geladen werden": "Não foi possível carregar os títulos",
+    "Version": "Versão",
+    "Version: {0}": "Versão: {0}"
   }
 };

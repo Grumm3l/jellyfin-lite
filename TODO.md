@@ -5,6 +5,3 @@
   and can't be played.
 - **Live TV / Channels**: channel list, program guide, watching live
   channels (and recordings).
-- **Multiple versions of a movie**: let the user choose between the media
-  sources of a movie (e.g. 4K / 1080p, director's cut) before playback; the
-  first version is always used at the moment.

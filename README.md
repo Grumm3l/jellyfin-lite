@@ -24,6 +24,7 @@ Images in the screenshots: [Blender open movies](https://studio.blender.org/film
   preview images
 - Next episode starts automatically
 - Cast on the details page; open an actor to see their movies and series
+- Movies with several versions (4K, 1080p, director's cut): choose one on the details page
 - Search in the top bar; with [Seerr](https://github.com/seerr-team/seerr),
   titles that aren't in the library can be requested from there
 - Books: comics (CBZ, CBR), EPUB and PDF, read page by page without

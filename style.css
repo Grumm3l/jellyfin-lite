@@ -816,3 +816,6 @@ body.calm .bd.on { opacity: 0.16; }
 .poster.person { width: 150px; height: 225px; }
 .poster.person img { position: absolute; left: 0; top: 0; width: 150px; height: 225px; }
 .personinitials { height: 225px; line-height: 225px; font-size: 52px; color: #666666; text-align: center; }
+
+/* picker in the middle of the screen (versions) */
+#settingsMenu.choice { top: 150px; right: auto; left: 50%; width: 640px; margin-left: -320px; padding-bottom: 10px; }
