@@ -40,7 +40,7 @@
     } catch (e) {}
     return id || 'jflite-tv';
   }());
-  var VERSION = '0.17.0';
+  var VERSION = '0.18.0';
   var AUTH = 'MediaBrowser Client="' + CLIENT + '", Device="' + DEVICE +
              '", DeviceId="' + DEVICEID + '", Version="' + VERSION + '"';
   var REQUEST_TIMEOUT = 20000;
@@ -131,6 +131,7 @@
     trackFocus: -1,
     music: null,             /* music player */
     libArtists: false,       /* music library: artists instead of albums */
+    guide: null,             /* live TV programme guide */
     retryFn: null,
     exitArmedAt: 0,
     lastActivate: 0,
@@ -434,7 +435,7 @@
       (state.view === 'home' || state.view === 'library' || state.view === 'series' ||
        state.view === 'season' || state.view === 'details' || state.view === 'seerr' ||
        state.view === 'person' || state.view === 'album' || state.view === 'artist' ||
-       state.view === 'message');
+       state.view === 'guide' || state.view === 'message');
   }
 
   /* move the remote focus from the page content up into the top bar */
@@ -458,6 +459,7 @@
     if (state.view === 'home') updateHomeFocus();
     else if (state.view === 'details' || state.view === 'seerr') updateDetailFocus();
     else if (state.view === 'album') updateAlbumFocus();
+    else if (state.view === 'guide') renderGuide();
     else if (state.view === 'message') setFocused($('retrybtn'), true);
     else updateFocus();
   }
@@ -1617,7 +1619,7 @@
 
   var SNAP_KEYS = ['view', 'title', 'items', 'focus', 'kind', 'current', 'basePath', 'totalCount',
     'homeRows', 'rowFocus', 'lib', 'libSort', 'libUnplayed', 'bgItem', 'libTitle', 'detailFocusKey', 'castCol',
-    'tracks', 'trackFocus', 'libArtists'];
+    'tracks', 'trackFocus', 'libArtists', 'guide'];
 
   function snapshot() {
     var s = {};
@@ -1686,6 +1688,10 @@
       showDetails(s.current, false);
     } else if (s.view === 'seerr' && s.current) {
       showSeerrDetails(s.current, false);
+    } else if (s.view === 'guide' && state.guide) {
+      setCrumb(state.title);
+      clearBackdrop();
+      renderGuide();
     } else if (s.view === 'album' && s.current) {
       setCrumb(state.title);
       musicBackdrop(state.current);
@@ -2423,7 +2429,7 @@
 
   function setGridHints() {
     if (state.view === 'library' && isLiveLib(state.lib)) {
-      setHints([['ok', T('Abspielen')], ['green', state.libUnplayed ? T('Alle Sender') : T('Favoriten')],
+      setHints([['ok', T('Abspielen')], ['yellow', T('Programm')], ['green', state.libUnplayed ? T('Alle Sender') : T('Favoriten')],
         ['numbers', T('Sendernummer')], ['red', T('Suche')], ['back', T('Zurück')]]);
     } else if (state.view === 'library') {
       var music = isMusicLib(state.lib);
@@ -4914,6 +4920,7 @@
     }
 
     if (state.view === 'album') { handleAlbumKey(e, k); return; }
+    if (state.view === 'guide') { handleGuideKey(e, k); return; }
 
     if (state.view === 'details' && state.cast && state.detailFocusKey === 'cast') {
       if (k === K_LEFT || k === K_RIGHT) { e.preventDefault(); castMove(k === K_LEFT ? -1 : 1); }
@@ -4988,6 +4995,9 @@
     } else if (k >= 48 && k <= 57 && canJumpLetters()) {
       e.preventDefault();
       letterKey(k - 48);
+    } else if (k === K_YELLOW && state.view === 'library' && isLiveLib(state.lib)) {
+      e.preventDefault();
+      openGuide();
     } else if (k === K_YELLOW && state.view === 'library' && !isLiveLib(state.lib)) {
       e.preventDefault();
       state.libSort = (state.libSort + 1) % SORTS.length;
@@ -5109,7 +5119,8 @@
     if (!opts.chain) showToast(T('Lade {0} ...', item.Name || ''));
     if (!opts.chain && state.view !== 'player') {
       /* the channel list to zap through (CH ▲ ▼, numbers) */
-      state.liveChannels = state.view === 'library' && isLiveLib(state.lib) ? state.items : null;
+      state.liveChannels = state.view === 'library' && isLiveLib(state.lib) ? state.items :
+        state.view === 'guide' && state.guide ? state.guide.channels : null;
     }
     liveRequest(item, !!opts.transcode, function (err, data) {
       if (req !== state.playReq) return;
@@ -5275,6 +5286,11 @@
         if (i < 0) showToast(T('Kein Sender {0}', num));
         else if (list[i].Id !== state.playerItem.Id) tuneChannel(list[i]);
       });
+    } else if (state.view === 'guide' && state.guide) {
+      var gi = findChannelByNumber(state.guide.channels, num);
+      if (gi < 0) { showToast(T('Kein Sender {0}', num)); return; }
+      state.guide.row = gi;
+      renderGuide();
     } else if (state.view === 'library' && isLiveLib(state.lib)) {
       var j = findChannelByNumber(state.items, num);
       if (j < 0) { showToast(T('Kein Sender {0}', num)); return; }
@@ -5298,6 +5314,233 @@
     ptime.textContent = p && parseDate(p.StartDate) ? fmtClock(new Date(parseDate(p.StartDate))) + ' – ' +
       fmtClock(new Date(parseDate(p.EndDate))) : T('Live');
     pend.textContent = '';
+  }
+
+  /* ---------- live TV: programme guide ----------
+     Channels as rows, time from left to right. The programmes are loaded in
+     6-hour pieces for the channels on screen. */
+
+  var GUIDE_CHUNK = 6 * 3600000;
+  var HALF_HOUR = 1800000;
+  var WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+  function floorHalfHour(t) { return Math.floor(t / HALF_HOUR) * HALF_HOUR; }
+
+  function openGuide() {
+    var channels = state.items && state.items.length ? state.items : null;
+    var focus = state.focus;
+    pushState();
+    enterView('guide', (state.lib ? state.lib.Name : T('Live-TV')) + '  ·  ' + T('Programm'));
+    clearBackdrop();
+    var start = floorHalfHour(now());
+    state.guide = {
+      channels: channels || [], row: channels ? focus : 0, top: 0,
+      min: start, winStart: start, focusTime: now(),
+      progs: {}, chunks: {}, loading: {}
+    };
+    if (channels) { renderGuide(); return; }
+    showLoading(T('Lade ...'));
+    var nav = state.navSeq;
+    liveChannelList(function (list) {
+      if (nav !== state.navSeq) return;
+      state.guide.channels = list;
+      if (!list.length) { showError(T('Keine Sender gefunden.')); return; }
+      renderGuide();
+    });
+  }
+
+  function guideRowsVisible() {
+    var g = state.guide;
+    return Math.max(1, Math.floor((g.height - 36 - 140) / 62));
+  }
+
+  function guideProgram(ch, t) {
+    var list = state.guide.progs[ch.Id] || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].s <= t && list[i].e > t) return list[i];
+    }
+    return null;
+  }
+
+  /* fetch the 6-hour pieces of the visible window that are missing */
+  function loadGuidePrograms(ids) {
+    var g = state.guide;
+    var nav = state.navSeq;
+    var first = Math.floor(g.winStart / GUIDE_CHUNK);
+    var last = Math.floor((g.winStart + g.winLen) / GUIDE_CHUNK);
+    for (var c = first; c <= last; c++) {
+      var need = [];
+      for (var i = 0; i < ids.length; i++) {
+        var key = ids[i] + ':' + c;
+        if (!g.chunks[key] && !g.loading[key]) { need.push(ids[i]); g.loading[key] = true; }
+      }
+      if (!need.length) continue;
+      (function (chunk, need) {
+        var a = new Date(chunk * GUIDE_CHUNK).toISOString();
+        var b = new Date((chunk + 1) * GUIDE_CHUNK).toISOString();
+        getJson('/LiveTv/Programs?' + uidParam() + '&channelIds=' + need.join(',') +
+          '&minEndDate=' + encodeURIComponent(a) + '&maxStartDate=' + encodeURIComponent(b) +
+          '&sortBy=StartDate&enableImages=false&enableTotalRecordCount=false&fields=Overview',
+          function (err, data) {
+            for (var j = 0; j < need.length; j++) {
+              delete g.loading[need[j] + ':' + chunk];
+              if (!err) g.chunks[need[j] + ':' + chunk] = true;
+            }
+            if (err || !data || !data.Items) return;
+            for (var k = 0; k < data.Items.length; k++) addGuideProgram(data.Items[k]);
+            if (nav === state.navSeq && state.view === 'guide' && state.guide === g) renderGuide();
+          });
+      }(c, need));
+    }
+  }
+
+  function addGuideProgram(p) {
+    var list = state.guide.progs[p.ChannelId] || (state.guide.progs[p.ChannelId] = []);
+    for (var i = 0; i < list.length; i++) if (list[i].p.Id === p.Id) return;
+    var s = parseDate(p.StartDate);
+    var e = parseDate(p.EndDate);
+    if (!s || !e || e <= s) return;
+    list.push({ s: s, e: e, p: p });
+    list.sort(function (x, y) { return x.s - y.s; });
+  }
+
+  function renderGuide() {
+    var g = state.guide;
+    if (!g) return;
+    /* time goes on (e.g. after watching a channel from here) */
+    g.min = floorHalfHour(now());
+    if (g.winStart < g.min) g.winStart = g.min;
+    if (g.focusTime < now()) g.focusTime = now();
+    g.width = Math.max(600, content.clientWidth - 40);
+    g.height = Math.max(400, content.clientHeight - 50);
+    g.area = g.width - 230;
+    g.winLen = (g.area >= 1300 ? 180 : 120) * 60000;
+    var rows = guideRowsVisible();
+    if (g.row < g.top) g.top = g.row;
+    if (g.row >= g.top + rows) g.top = g.row - rows + 1;
+    var vis = g.channels.slice(g.top, g.top + rows);
+    var ids = [];
+    for (var v = 0; v < vis.length; v++) ids.push(vis[v].Id);
+    loadGuidePrograms(ids);
+
+    var ppm = g.area / (g.winLen / 60000);   /* pixels per minute */
+    var winEnd = g.winStart + g.winLen;
+    function x(t) { return Math.round((t - g.winStart) / 60000 * ppm); }
+    var html = '<div id="guide" style="width:' + g.width + 'px;height:' + g.height + 'px">';
+    html += '<div class="gruler">';
+    for (var t = g.winStart; t < winEnd; t += HALF_HOUR) {
+      html += '<span style="left:' + (230 + x(t)) + 'px">' + esc(fmtClock(new Date(t))) + '</span>';
+    }
+    html += '</div>';
+    var nowT = now();
+    var focused = null;
+    for (var r = 0; r < vis.length; r++) {
+      var ch = vis[r];
+      var rowIdx = g.top + r;
+      html += '<div class="grow' + (rowIdx === g.row ? ' current' : '') + '"><div class="gch">' + esc(channelLabel(ch)) + '</div><div class="gprogs">';
+      var list = g.progs[ch.Id] || [];
+      var any = false;
+      for (var i = 0; i < list.length; i++) {
+        var it = list[i];
+        if (it.e <= g.winStart || it.s >= winEnd) continue;
+        any = true;
+        var isF = !focused && rowIdx === g.row && it.s <= g.focusTime && it.e > g.focusTime;
+        if (isF) focused = it;
+        var left = x(Math.max(it.s, g.winStart));
+        var w = x(Math.min(it.e, winEnd)) - left - 4;
+        html += '<div class="gp' + (it.s <= nowT && it.e > nowT ? ' live' : '') + (isF ? ' focused' : '') +
+          '" style="left:' + left + 'px;width:' + Math.max(2, w) + 'px">' +
+          (w > 40 ? '<div class="gpn">' + esc(it.p.Name || '') + '</div><div class="gpt">' +
+            esc(fmtClock(new Date(it.s)) + ' – ' + fmtClock(new Date(it.e))) + '</div>' : '') + '</div>';
+      }
+      if (!any) {
+        var loadingRow = false;
+        for (var key in g.loading) if (key.indexOf(ch.Id + ':') === 0) loadingRow = true;
+        html += '<div class="gp empty' + (rowIdx === g.row ? ' focused' : '') + '" style="left:0;width:' + (g.area - 4) + 'px">' +
+          '<div class="gpn">' + esc(loadingRow ? T('Lade ...') : T('Keine Programmdaten')) + '</div></div>';
+      }
+      html += '</div></div>';
+    }
+    if (nowT >= g.winStart && nowT < winEnd) {
+      html += '<div class="gnow" style="left:' + (230 + x(nowT)) + 'px;height:' + (36 + vis.length * 62) + 'px"></div>';
+    }
+    g.focusedProg = focused;
+    var ch2 = g.channels[g.row];
+    html += '<div class="ginfo">';
+    if (focused) {
+      var p = focused.p;
+      var d = new Date(focused.s);
+      var day = d.toDateString() === new Date().toDateString() ? '' : T(WEEKDAYS[d.getDay()]) + ' ' + d.getDate() + '.' + (d.getMonth() + 1) + '.  ';
+      html += '<div class="gititle">' + esc(p.Name || '') + (p.EpisodeTitle ? '<span class="giep">  ·  ' + esc(p.EpisodeTitle) + '</span>' : '') + '</div>' +
+        '<div class="gimeta">' + esc(channelLabel(ch2) + '  ·  ' + day + fmtClock(d) + ' – ' + fmtClock(new Date(focused.e))) + '</div>' +
+        '<div class="gidesc">' + esc(p.Overview || '') + '</div>';
+    } else if (ch2) {
+      html += '<div class="gititle">' + esc(channelLabel(ch2)) + '</div>';
+    }
+    html += '</div></div>';
+    content.innerHTML = html;
+    content.scrollTop = 0;
+    var live = focused ? focused.s <= nowT && focused.e > nowT : true;
+    setHints([['ok', live ? T('Abspielen') : T('Info')], ['arrows', T('Sender')], ['numbers', T('Sendernummer')], ['back', T('Zurück')]]);
+  }
+
+  /* ◀ / ▶: the previous / next programme of the row */
+  function guideStep(dir) {
+    var g = state.guide;
+    var ch = g.channels[g.row];
+    var list = (ch && g.progs[ch.Id]) || [];
+    var cur = guideProgram(ch, g.focusTime);
+    var target = null;
+    if (cur) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i] === cur) { target = list[i + dir] || null; break; }
+      }
+    } else {
+      for (var j = 0; j < list.length; j++) {
+        if (dir > 0 && list[j].s > g.focusTime) { target = list[j]; break; }
+        if (dir < 0 && list[j].e <= g.focusTime) target = list[j];
+      }
+    }
+    /* nothing before what runs now */
+    var nowT = now();
+    if (target && target.e <= nowT) target = null;
+    if (target) {
+      g.focusTime = Math.max(target.s, nowT);
+    } else {
+      /* no (loaded) programme there: move by half an hour */
+      g.focusTime = Math.max(nowT, g.focusTime + dir * HALF_HOUR);
+    }
+    var end = g.winStart + g.winLen;
+    if (g.focusTime < g.winStart) g.winStart = Math.max(g.min, floorHalfHour(g.focusTime));
+    else if (g.focusTime >= end - HALF_HOUR / 2) g.winStart = floorHalfHour(g.focusTime) - HALF_HOUR;
+    renderGuide();
+  }
+
+  function guideRow(d) {
+    var g = state.guide;
+    var r = Math.max(0, Math.min(g.channels.length - 1, g.row + d));
+    if (r === g.row) return false;
+    g.row = r;
+    renderGuide();
+    return true;
+  }
+
+  function handleGuideKey(e, k) {
+    var g = state.guide;
+    e.preventDefault();
+    if (!g || !g.channels.length) { if (isBackKey(k)) goBack(); return; }
+    if (k === K_LEFT || k === K_RIGHT) guideStep(k === K_LEFT ? -1 : 1);
+    else if (k === K_UP) { if (!guideRow(-1)) enterTop(); }
+    else if (k === K_DOWN) guideRow(1);
+    else if (k === K_CH_UP || k === K_CH_DOWN) guideRow((k === K_CH_UP ? -1 : 1) * guideRowsVisible());
+    else if (k >= 48 && k <= 57) channelDigit(k - 48);
+    else if (k === K_ENTER && channelDigitsPending()) commitChannelDigits(false);
+    else if (k === K_ENTER || isPlayKey(k)) {
+      var f = g.focusedProg;
+      var nowT = now();
+      if (!f || (f.s <= nowT && f.e > nowT)) playItem(g.channels[g.row]);
+      else showToast(T('Läuft ab {0}', (f.s - nowT > 86400000 ? T(WEEKDAYS[new Date(f.s).getDay()]) + ' ' : '') + fmtClock(new Date(f.s))));
+    } else if (isBackKey(k)) goBack();
   }
 
   /* ---------- music: albums, artists, playlists, player ---------- */

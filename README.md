@@ -30,8 +30,8 @@ Images in the screenshots: [Blender open movies](https://studio.blender.org/film
 - Movies with several versions (4K, 1080p, director's cut): choose one on the details page
 - Music: albums, artists and playlists; MP3 and AAC play directly, other formats
   are converted to MP3 by the server
-- Live TV: channel list with what is on now, favourites, a home row; switch
-  channels with CH ▲ ▼ or the channel number
+- Live TV: channel list with what is on now, favourites, a home row and a
+  programme guide; switch channels with CH ▲ ▼ or the channel number
 - Search in the top bar; with [Seerr](https://github.com/seerr-team/seerr),
   titles that aren't in the library can be requested from there
 - Books: comics (CBZ, CBR), EPUB and PDF, read page by page without
@@ -99,7 +99,7 @@ unsigned package.
 | CH ▲ / CH ▼ | three rows up / down | next / previous episode or channel | previous / next page |
 | 🟥 | search | – | – |
 | 🟩 | only unwatched (music: albums / artists, Live TV: favourites) | – | – |
-| 🟨 | sort order | – | – |
+| 🟨 | sort order (Live TV: programme guide) | – | – |
 | 🟦 | settings | playback options | – |
 | Back | back | stop | close |
 

@@ -260,7 +260,18 @@ window.JF_I18N = {
     "CH ▲ ▼: Sender": "CH ▲ ▼: Channel",
     "0–9: Sendernummer": "0–9: Channel number",
     "Live-TV": "Live TV",
-    "Sender": "Channel"
+    "Sender": "Channel",
+    "Programm": "Guide",
+    "Info": "Info",
+    "Keine Programmdaten": "No guide data",
+    "Läuft ab {0}": "Starts at {0}",
+    "So": "Sun",
+    "Mo": "Mon",
+    "Di": "Tue",
+    "Mi": "Wed",
+    "Do": "Thu",
+    "Fr": "Fri",
+    "Sa": "Sat"
   },
   fr: {
     "1 Staffel": "1 saison",
@@ -520,7 +531,18 @@ window.JF_I18N = {
     "CH ▲ ▼: Sender": "CH ▲ ▼ : Chaîne",
     "0–9: Sendernummer": "0–9 : Numéro de chaîne",
     "Live-TV": "TV en direct",
-    "Sender": "Chaîne"
+    "Sender": "Chaîne",
+    "Programm": "Programme",
+    "Info": "Info",
+    "Keine Programmdaten": "Aucune donnée de programme",
+    "Läuft ab {0}": "Commence à {0}",
+    "So": "dim.",
+    "Mo": "lun.",
+    "Di": "mar.",
+    "Mi": "mer.",
+    "Do": "jeu.",
+    "Fr": "ven.",
+    "Sa": "sam."
   },
   es: {
     "1 Staffel": "1 temporada",
@@ -780,7 +802,18 @@ window.JF_I18N = {
     "CH ▲ ▼: Sender": "CH ▲ ▼: Canal",
     "0–9: Sendernummer": "0–9: Número de canal",
     "Live-TV": "TV en directo",
-    "Sender": "Canal"
+    "Sender": "Canal",
+    "Programm": "Guía",
+    "Info": "Info",
+    "Keine Programmdaten": "Sin datos de guía",
+    "Läuft ab {0}": "Empieza a las {0}",
+    "So": "dom.",
+    "Mo": "lun.",
+    "Di": "mar.",
+    "Mi": "mié.",
+    "Do": "jue.",
+    "Fr": "vie.",
+    "Sa": "sáb."
   },
   it: {
     "1 Staffel": "1 stagione",
@@ -1040,7 +1073,18 @@ window.JF_I18N = {
     "CH ▲ ▼: Sender": "CH ▲ ▼: Canale",
     "0–9: Sendernummer": "0–9: Numero canale",
     "Live-TV": "TV in diretta",
-    "Sender": "Canale"
+    "Sender": "Canale",
+    "Programm": "Guida",
+    "Info": "Info",
+    "Keine Programmdaten": "Nessun dato della guida",
+    "Läuft ab {0}": "Inizia alle {0}",
+    "So": "dom",
+    "Mo": "lun",
+    "Di": "mar",
+    "Mi": "mer",
+    "Do": "gio",
+    "Fr": "ven",
+    "Sa": "sab"
   },
   nl: {
     "1 Staffel": "1 seizoen",
@@ -1300,7 +1344,18 @@ window.JF_I18N = {
     "CH ▲ ▼: Sender": "CH ▲ ▼: Zender",
     "0–9: Sendernummer": "0–9: Zendernummer",
     "Live-TV": "Live-tv",
-    "Sender": "Zender"
+    "Sender": "Zender",
+    "Programm": "Gids",
+    "Info": "Info",
+    "Keine Programmdaten": "Geen gidsgegevens",
+    "Läuft ab {0}": "Begint om {0}",
+    "So": "zo",
+    "Mo": "ma",
+    "Di": "di",
+    "Mi": "wo",
+    "Do": "do",
+    "Fr": "vr",
+    "Sa": "za"
   },
   pl: {
     "1 Staffel": "1 sezon",
@@ -1560,7 +1615,18 @@ window.JF_I18N = {
     "CH ▲ ▼: Sender": "CH ▲ ▼: Kanał",
     "0–9: Sendernummer": "0–9: Numer kanału",
     "Live-TV": "Telewizja na żywo",
-    "Sender": "Kanał"
+    "Sender": "Kanał",
+    "Programm": "Program",
+    "Info": "Info",
+    "Keine Programmdaten": "Brak danych programu",
+    "Läuft ab {0}": "Początek o {0}",
+    "So": "nd.",
+    "Mo": "pon.",
+    "Di": "wt.",
+    "Mi": "śr.",
+    "Do": "czw.",
+    "Fr": "pt.",
+    "Sa": "sob."
   },
   pt: {
     "1 Staffel": "1 temporada",
@@ -1820,6 +1886,17 @@ window.JF_I18N = {
     "CH ▲ ▼: Sender": "CH ▲ ▼: Canal",
     "0–9: Sendernummer": "0–9: Número do canal",
     "Live-TV": "TV em direto",
-    "Sender": "Canal"
+    "Sender": "Canal",
+    "Programm": "Guia",
+    "Info": "Info",
+    "Keine Programmdaten": "Sem dados do guia",
+    "Läuft ab {0}": "Começa às {0}",
+    "So": "dom.",
+    "Mo": "seg.",
+    "Di": "ter.",
+    "Mi": "qua.",
+    "Do": "qui.",
+    "Fr": "sex.",
+    "Sa": "sáb."
   }
 };
