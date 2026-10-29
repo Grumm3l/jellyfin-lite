@@ -40,7 +40,7 @@
     } catch (e) {}
     return id || 'jflite-tv';
   }());
-  var VERSION = '0.16.0';
+  var VERSION = '0.17.0';
   var AUTH = 'MediaBrowser Client="' + CLIENT + '", Device="' + DEVICE +
              '", DeviceId="' + DEVICEID + '", Version="' + VERSION + '"';
   var REQUEST_TIMEOUT = 20000;
@@ -162,6 +162,13 @@
     sourceChoice: {},  /* item id -> chosen media source (version) */
     startMs: 0,
     playUrl: '',
+    isLive: false,      /* playing a TV channel */
+    liveStreamId: '',
+    liveProgram: null,
+    liveNext: null,
+    liveProgramsAt: 0,
+    liveChannels: null, /* channels to zap through */
+    channelDigits: null,
     segments: [],       /* intro / outro etc. of the playing item (ms) */
     skipSeg: null,      /* segment whose skip button is showing */
     upNext: null,       /* 'next episode' overlay near the end */
@@ -373,6 +380,7 @@
     back: '<b class="key">ZUR&Uuml;CK</b>',
     arrows: '<b class="key">&#9650;&#9660;</b>',
     digits: '<b class="key">2&ndash;9</b>',
+    numbers: '<b class="key">0&ndash;9</b>',
     red: '<i class="ck red"></i>',
     green: '<i class="ck green"></i>',
     yellow: '<i class="ck yellow"></i>',
@@ -575,7 +583,7 @@
   var TYPE_NAMES = {
     Movie: 'Film', Series: 'Serie', Episode: 'Folge', Season: 'Staffel',
     BoxSet: 'Sammlung', Video: 'Video', MusicVideo: 'Musikvideo', Book: 'Buch',
-    MusicAlbum: 'Album', Folder: 'Ordner', MusicArtist: 'Künstler', Playlist: 'Playlist', Audio: 'Titel'
+    MusicAlbum: 'Album', Folder: 'Ordner', MusicArtist: 'Künstler', Playlist: 'Playlist', Audio: 'Titel', TvChannel: 'Sender'
   };
 
   function episodeCode(item) {
@@ -657,7 +665,7 @@
 
   function isPlayable(item) {
     return !!(item && (item.Type === 'Movie' || item.Type === 'Episode' ||
-      item.Type === 'Video' || item.Type === 'MusicVideo' || item.Type === 'Trailer'));
+      item.Type === 'Video' || item.Type === 'MusicVideo' || item.Type === 'Trailer' || item.Type === 'TvChannel'));
   }
 
   /* ---------- server address ---------- */
@@ -1391,7 +1399,7 @@
     $('spstatus').textContent = T('Suche ...');
     getJson('/Items?' + uidParam() + '&searchTerm=' + encodeURIComponent(term) +
       /* no episodes: they bury the series ("Dark" matches 42 episodes, 3 series) */
-      '&recursive=true&includeItemTypes=Movie,Series,BoxSet,Video,MusicVideo,Book,MusicAlbum,MusicArtist&limit=40' + FIELDS,
+      '&recursive=true&includeItemTypes=Movie,Series,BoxSet,Video,MusicVideo,Book,MusicAlbum,MusicArtist,TvChannel&limit=40' + FIELDS,
       function (err, data) {
         if (state.sp !== sp || seq !== sp.seq) return;
         sp.pending--;
@@ -1775,13 +1783,17 @@
         var ct = views[i].CollectionType;
         if (ct === 'movies' || ct === 'tvshows' || ct === 'homevideos' || ct === 'music') latestViews.push(views[i]);
       }
-      var pending = 2 + latestViews.length;
+      var liveView = null;
+      var liveRow = null;
+      for (i = 0; i < views.length; i++) if (isLiveLib(views[i])) liveView = views[i];
+      var pending = 2 + latestViews.length + (liveView ? 1 : 0);
       function done() {
         if (--pending > 0) return;
         var rows = [];
         if (resume) rows.push(resume);
         if (nextUp) rows.push(nextUp);
         rows.push({ key: 'libs', title: T('Meine Medien'), kind: 'library', items: libItems });
+        if (liveRow) rows.push(liveRow);
         for (var j = 0; j < latest.length; j++) if (latest[j]) rows.push(latest[j]);
         cb(null, rows);
       }
@@ -1800,6 +1812,15 @@
           }
           done();
         });
+      if (liveView) {
+        /* favourite channels first, like the TV's own list */
+        getJson('/LiveTv/Channels?' + uidParam() + LIVE_FIELDS + '&limit=20&enableFavoriteSorting=true', function (e, d) {
+          if (!e && d && d.Items && d.Items.length) {
+            liveRow = { key: 'live', title: liveView.Name || T('Live-TV'), kind: 'items', items: d.Items };
+          }
+          done();
+        });
+      }
       for (i = 0; i < latestViews.length; i++) {
         (function (v, slot) {
           function store(e, items) {
@@ -2013,7 +2034,7 @@
   var letterJump = { key: -1, n: 0, at: 0, timer: null, seq: 0 };
 
   function canJumpLetters() {
-    return state.view === 'library' && state.libSort === 0 && !browsesFolders(state.lib) && !!state.basePath;
+    return state.view === 'library' && state.libSort === 0 && !browsesFolders(state.lib) && !isLiveLib(state.lib) && !!state.basePath;
   }
 
   function letterKey(digit) {
@@ -2070,6 +2091,7 @@
     var t = state.libTitle || (v ? v.Name : state.title);
     var s = SORTS[state.libSort] || SORTS[0];
     if (isMusicLib(v)) return t + '  ·  ' + (state.libArtists ? T('Künstler') : T('Alben')) + '  ·  ' + T(s.label);
+    if (isLiveLib(v)) return t + '  ·  ' + (state.libUnplayed ? T('Favoriten') : T('Alle Sender'));
     return t + '  ·  ' + T(s.label) + (state.libUnplayed ? '  ·  ' + T('Ungesehen') : '');
   }
 
@@ -2117,7 +2139,11 @@
       base = '/Artists/AlbumArtists?' + uidParam() + '&parentId=' + encodeURIComponent(v.Id) + FIELDS +
         '&sortBy=' + s.by + '&sortOrder=' + s.order;
     }
-    loadGridPage(nav, base, T('Inhalt konnte nicht geladen werden'), reloadLibrary);
+    if (isLiveLib(v)) {
+      base = '/LiveTv/Channels?' + uidParam() + LIVE_FIELDS + (state.libUnplayed ? '&isFavorite=true' : '');
+    }
+    loadGridPage(nav, base, T('Inhalt konnte nicht geladen werden'), reloadLibrary,
+      isLiveLib(v) ? function () { showError(state.libUnplayed ? T('Keine Lieblingssender.') : T('Keine Sender gefunden.')); } : null);
   }
 
   function openSeries(series) {
@@ -2178,6 +2204,7 @@
     if (isTrackList(item)) { openAlbum(item); return; }
     if (item.Type === 'MusicArtist') { openArtist(item); return; }
     if (item.Type === 'Audio') { playMusic([item], 0, false); return; }
+    if (item.Type === 'TvChannel') { playItem(item); return; }
     if (isPlayable(item)) { showDetails(item, true); return; }
     if (item.IsFolder) { openLibrary(item); return; }
     showDetails(item, true);
@@ -2234,6 +2261,7 @@
 
   /* opts: wide (16:9 artwork), showSeries (series name as title), lazy, showType */
   function makeCard(item, kind, opts) {
+    if (item && item.Type === 'TvChannel' && kind !== 'library') return makeChannelCard(item, opts || {});
     if (kind === 'library') {
       var tile = makeTile(item);
       tile.onclick = function () { openItem(item); };
@@ -2394,7 +2422,10 @@
   }
 
   function setGridHints() {
-    if (state.view === 'library') {
+    if (state.view === 'library' && isLiveLib(state.lib)) {
+      setHints([['ok', T('Abspielen')], ['green', state.libUnplayed ? T('Alle Sender') : T('Favoriten')],
+        ['numbers', T('Sendernummer')], ['red', T('Suche')], ['back', T('Zurück')]]);
+    } else if (state.view === 'library') {
       var music = isMusicLib(state.lib);
       var hints = [['ok', T('Öffnen')], ['play', T('Abspielen')], ['yellow', T('Sortieren')],
         ['green', music ? (state.libArtists ? T('Alben') : T('Künstler')) : T('Ungesehen')]];
@@ -3254,6 +3285,7 @@
   function playItem(item, opts) {
     opts = opts || {};
     if (!isPlayable(item)) { openItem(item); return; }
+    if (item.Type === 'TvChannel') { playLive(item, opts); return; }
     var startMs = typeof opts.startMs === 'number' ? opts.startMs : resumeMs(item);
     var req = ++state.playReq;
     state.playLoading = true;
@@ -3281,6 +3313,7 @@
       state.startMs = startMs;
       state.playerOffset = 0;
       state.playMethod = 'DirectPlay';
+      state.isLive = false;
       state.lastGoodPos = startMs;
       state.recoverTries = 0;
       state.recoverAt = 0;
@@ -3328,6 +3361,7 @@
   }
 
   function startTranscode(startMs) {
+    if (state.isLive) { restartLive(true, true); return; }
     var item = state.playerItem;
     var req = state.playReq;
     state.playMethod = 'Transcode';
@@ -3472,7 +3506,8 @@
       IsPaused: state.playerPaused,
       IsMuted: false,
       CanSeek: true,
-      PlayMethod: state.playMethod
+      PlayMethod: state.playMethod,
+      LiveStreamId: state.liveStreamId || undefined
     };
   }
 
@@ -3536,6 +3571,7 @@
 
   function playerTitles(item) {
     if (!item) return ['', ''];
+    if (item.Type === 'TvChannel') return [channelLabel(item), item.CurrentProgram ? item.CurrentProgram.Name || '' : ''];
     if (item.Type === 'Episode') {
       var se = episodeCode(item);
       return [item.SeriesName || item.Name || '', (se ? se + '  ·  ' : '') + (item.Name || '')];
@@ -3556,10 +3592,14 @@
     }
     var dur = curDuration();
     var display = state.seekTarget !== null ? state.seekTarget : cur;
+    if (state.isLive) {
+      updateLiveUi();
+    } else {
     var pct = dur > 0 ? Math.min(100, Math.max(0, display / dur * 100)) : 0;
     progressFill.style.width = pct + '%';
     ptime.textContent = fmtTime(display) + ' / ' + fmtTime(dur);
     pend.textContent = dur > 0 ? T('Endet um {0}', fmtClock(new Date(now() + Math.max(0, dur - display)))) : '';
+    }
     var wasPaused = state.playerPaused;
     state.playerPaused = (st === 'PAUSED');
     pauseIcon.className = state.playerPaused && state.seekTarget === null ? '' : 'hidden';
@@ -3575,7 +3615,9 @@
       phint.textContent = T('Spule zu {0} ...', fmtTime(state.seekTarget));
     } else {
       var it = state.playerItem;
-      phint.textContent = [state.skipSeg ? T('OK: Überspringen') : state.playerPaused ? T('OK: Weiter') : T('OK: Pause'), T('◀ ▶: Spulen')]
+      phint.textContent = state.isLive ? [state.playerPaused ? T('OK: Weiter') : T('OK: Pause'), T('CH ▲ ▼: Sender'),
+        T('0–9: Sendernummer'), T('Blau: Optionen'), T('Zurück: Stopp')].join('  ·  ') :
+        [state.skipSeg ? T('OK: Überspringen') : state.playerPaused ? T('OK: Weiter') : T('OK: Pause'), T('◀ ▶: Spulen')]
         .concat(it && it.Type === 'Episode' && it.SeriesId ? [T('CH ▲ ▼: Folge')] : [])
         .concat([T('Blau: Optionen'), T('Zurück: Stopp')]).join('  ·  ');
     }
@@ -4250,6 +4292,11 @@
   function onPlaybackEnded(token) {
     if (token !== state.playToken || state.stopping) return;
     var item = state.playerItem;
+    if (state.isLive) {
+      /* a channel never ends by itself */
+      if (!recoverPlayback(token)) { showToast(T('Wiedergabe unterbrochen')); stopPlayback(0); }
+      return;
+    }
     var dur = curDuration();
     var reached = Math.max(curPos(), state.lastGoodPos);
     if (dur > 0 && reached < dur - 90000 && reached < dur * 0.92) {
@@ -4286,6 +4333,7 @@
 
   /* open the stream again at pos (same play method) */
   function reloadAt(pos) {
+    if (state.isLive) { restartLive(state.playMethod === 'Transcode', true); return; }
     state.playToken++;
     clearPrepareTimer();
     stopUiTimer();
@@ -4305,7 +4353,7 @@
      where it stopped instead of giving up or jumping to the next episode */
   function recoverPlayback(token) {
     if (token !== state.playToken || state.stopping || state.fallbackPending) return false;
-    if (!state.prepared || state.lastGoodPos <= 0 || state.recoverTries >= 3) return false;
+    if (!state.prepared || (state.lastGoodPos <= 0 && !state.isLive) || state.recoverTries >= 3) return false;
     state.recoverTries++;
     state.recoverAt = state.lastGoodPos;
     showToast(T('Verbindung unterbrochen, setze fort ...'));
@@ -4678,6 +4726,8 @@
       }
     });
     stopEncoding();
+    closeLiveStream();
+    state.isLive = false;
     state.playToken++;
     state.playReq++;
     state.playLoading = false;
@@ -4783,6 +4833,14 @@
       return;
     }
     showPlayerUi();
+    if (state.isLive && (k === K_LEFT || k === K_RIGHT || k === K_RW || k === K_FF)) {
+      e.preventDefault();
+      updatePlayerUi();
+      return;
+    }
+    if (state.isLive && k >= 48 && k <= 57) { e.preventDefault(); channelDigit(k - 48); return; }
+    if (state.isLive && k === K_ENTER && channelDigitsPending()) { e.preventDefault(); commitChannelDigits(false); return; }
+    if (state.isLive && (k === K_CH_UP || k === K_CH_DOWN)) { e.preventDefault(); switchChannel(k === K_CH_UP ? 1 : -1); return; }
     if (k === K_ENTER && state.skipSeg) {
       e.preventDefault();
       skipSegment();
@@ -4914,16 +4972,23 @@
     else if (k === K_DOWN) { e.preventDefault(); gridMove(0, 1); }
     else if (k === K_CH_UP) { e.preventDefault(); gridMove(0, -3); }
     else if (k === K_CH_DOWN) { e.preventDefault(); gridMove(0, 3); }
+    else if (k === K_ENTER && channelDigitsPending() && state.view === 'library' && isLiveLib(state.lib)) {
+      e.preventDefault();
+      commitChannelDigits(true);
+    }
     else if (k === K_ENTER) {
       e.preventDefault();
       openItem(currentGridItem());
     } else if (isPlayKey(k)) {
       e.preventDefault();
       playOrOpen(currentGridItem());
+    } else if (k >= 48 && k <= 57 && state.view === 'library' && isLiveLib(state.lib)) {
+      e.preventDefault();
+      channelDigit(k - 48);
     } else if (k >= 48 && k <= 57 && canJumpLetters()) {
       e.preventDefault();
       letterKey(k - 48);
-    } else if (k === K_YELLOW && state.view === 'library') {
+    } else if (k === K_YELLOW && state.view === 'library' && !isLiveLib(state.lib)) {
       e.preventDefault();
       state.libSort = (state.libSort + 1) % SORTS.length;
       reloadLibrary();
@@ -4936,6 +5001,303 @@
       e.preventDefault();
       goBack();
     }
+  }
+
+  /* ---------- live TV ---------- */
+
+  function isLiveLib(v) { return !!v && v.CollectionType === 'livetv'; }
+
+  var LIVE_FIELDS = '&enableImages=true&addCurrentProgram=true&enableUserData=true&fields=PrimaryImageAspectRatio';
+
+  function channelLabel(ch) {
+    return (ch.ChannelNumber || ch.Number ? (ch.ChannelNumber || ch.Number) + '  ' : '') + (ch.Name || '');
+  }
+
+  function parseDate(s) {
+    var t = s ? Date.parse(s) : NaN;
+    return isNaN(t) ? 0 : t;
+  }
+
+  /* "20:15 – 21:45  Tatort" */
+  function programLine(p) {
+    if (!p) return '';
+    var a = parseDate(p.StartDate);
+    var b = parseDate(p.EndDate);
+    return (a ? fmtClock(new Date(a)) + (b ? ' – ' + fmtClock(new Date(b)) : '') + '  ' : '') + (p.Name || '');
+  }
+
+  function programPct(p) {
+    var a = p ? parseDate(p.StartDate) : 0;
+    var b = p ? parseDate(p.EndDate) : 0;
+    if (!a || !b || b <= a) return -1;
+    return Math.max(0, Math.min(100, (now() - a) / (b - a) * 100));
+  }
+
+  /* channel logos come in every shape: show them whole on a 16:9 tile */
+  function makeChannelCard(item, opts) {
+    var card = el('div', 'card wide channel');
+    var poster = el('div', 'poster wide channel');
+    var img = document.createElement('img');
+    img.onerror = function () { this.style.display = 'none'; };
+    var tag = (item.ImageTags && item.ImageTags.Primary) || '';
+    if (tag && opts.lazy) img.setAttribute('data-src', imageUrl(item.Id, 'Primary', tag, 160));
+    else if (tag) img.src = imageUrl(item.Id, 'Primary', tag, 160);
+    else img.style.display = 'none';
+    poster.appendChild(img);
+    if (!tag) poster.appendChild(el('div', 'channelname', item.Name || ''));
+    var pct = programPct(item.CurrentProgram);
+    if (pct >= 0) {
+      var bar = el('div', 'cardprogress');
+      var fill = el('div', 'cardprogressfill');
+      fill.style.width = Math.max(3, Math.round(pct)) + '%';
+      bar.appendChild(fill);
+      poster.appendChild(bar);
+    }
+    if (item.UserData && item.UserData.IsFavorite) poster.appendChild(el('div', 'badge fav', '★'));
+    card.appendChild(poster);
+    card.appendChild(el('div', 'cardtitle', channelLabel(item)));
+    card.appendChild(el('div', 'cardsub', item.CurrentProgram ? programLine(item.CurrentProgram) : ''));
+    card.onclick = function () { playItem(item); };
+    return card;
+  }
+
+  var LIVE_DIRECT = [{ Container: 'ts,mpegts', Type: 'Video', VideoCodec: 'h264,mpeg2video,hevc', AudioCodec: 'aac,mp3,mp2,ac3' }];
+
+  /* opens the tuner on the server; transcode: H.264/AAC instead of the original stream */
+  function liveRequest(item, transcode, cb) {
+    var body = {
+      UserId: state.userId,
+      AutoOpenLiveStream: true,
+      IsPlayback: true,
+      EnableDirectPlay: false,
+      EnableDirectStream: !transcode,
+      EnableTranscoding: true,
+      AllowVideoStreamCopy: !transcode,
+      AllowAudioStreamCopy: !transcode,
+      DeviceProfile: {
+        MaxStreamingBitrate: transcode ? 8000000 : 60000000,
+        DirectPlayProfiles: transcode ? [] : LIVE_DIRECT,
+        TranscodingProfiles: [{
+          Container: 'ts', Type: 'Video', VideoCodec: 'h264', AudioCodec: 'aac',
+          Protocol: 'http', Context: 'Streaming', MaxAudioChannels: '2'
+        }],
+        CodecProfiles: []
+      }
+    };
+    api('POST', '/Items/' + encodeURIComponent(item.Id) + '/PlaybackInfo?' + uidParam() +
+      '&AutoOpenLiveStream=true&IsPlayback=true', body, function (err, txt) {
+      if (err) { cb(err); return; }
+      var data = null;
+      try { data = JSON.parse(txt); } catch (e) { cb('json'); return; }
+      if (!data || !data.MediaSources || !data.MediaSources.length) { cb(data && data.ErrorCode ? data.ErrorCode : 'leer'); return; }
+      cb(null, data);
+    });
+  }
+
+  function closeLiveStream() {
+    if (!state.liveStreamId) return;
+    api('POST', '/LiveTv/LiveStreams/Close?liveStreamId=' + encodeURIComponent(state.liveStreamId), null, null);
+    state.liveStreamId = '';
+  }
+
+  /* opts.chain: in the running player (channel switch); opts.transcode: no direct stream */
+  function playLive(item, opts) {
+    opts = opts || {};
+    var req = ++state.playReq;
+    state.playLoading = true;
+    showPlayerLoading();
+    if (!opts.chain) showToast(T('Lade {0} ...', item.Name || ''));
+    if (!opts.chain && state.view !== 'player') {
+      /* the channel list to zap through (CH ▲ ▼, numbers) */
+      state.liveChannels = state.view === 'library' && isLiveLib(state.lib) ? state.items : null;
+    }
+    liveRequest(item, !!opts.transcode, function (err, data) {
+      if (req !== state.playReq) return;
+      state.playLoading = false;
+      if (err) {
+        hidePlayerLoading();
+        showToast(T('Sender konnte nicht geöffnet werden ({0}).', errText(err)));
+        if (opts.chain) stopPlayback();
+        return;
+      }
+      var src = data.MediaSources[0];
+      if (!opts.chain) state.playerReturn = snapshot();
+      state.isLive = true;
+      state.playerItem = item;
+      state.playerSource = src;
+      state.liveStreamId = src.LiveStreamId || '';
+      state.playSessionId = data.PlaySessionId || '';
+      state.mediaSourceId = src.Id || item.Id;
+      state.startMs = 0;
+      state.playerOffset = 0;
+      state.playerDuration = 0;
+      state.lastGoodPos = 0;
+      if (!opts.recover) { state.recoverTries = 0; state.recoverAt = 0; }
+      state.pausedAt = 0;
+      state.reported = false;
+      state.prepared = false;
+      state.fallbackPending = false;
+      state.triedFallback = !!opts.transcode || !!src.TranscodingUrl;
+      state.playMethod = src.TranscodingUrl ? 'Transcode' : 'DirectStream';
+      state.trickplay = null;
+      state.segments = [];
+      state.upNext = null;
+      hideSkip();
+      hideUpNext();
+      initTracks(audioChoice(src));
+      state.aacAudioTrack = -1;
+      state.liveProgram = item.CurrentProgram || null;
+      state.liveNext = null;
+      loadLivePrograms(item);
+      var url = src.TranscodingUrl ||
+        '/Videos/' + encodeURIComponent(item.Id) + '/stream.ts?static=true' +
+        '&MediaSourceId=' + encodeURIComponent(state.mediaSourceId) +
+        (state.liveStreamId ? '&LiveStreamId=' + encodeURIComponent(state.liveStreamId) : '') +
+        '&PlaySessionId=' + encodeURIComponent(state.playSessionId) +
+        '&DeviceId=' + encodeURIComponent(DEVICEID);
+      startAvplay(absUrl(url));
+    });
+  }
+
+  /* what runs now and next on the playing channel */
+  function loadLivePrograms(item) {
+    var req = state.playReq;
+    state.liveProgramsAt = now();
+    getJson('/LiveTv/Programs?' + uidParam() + '&channelIds=' + encodeURIComponent(item.Id) +
+      '&minEndDate=' + encodeURIComponent(new Date().toISOString()) + '&sortBy=StartDate&limit=2&enableImages=false',
+      function (err, data) {
+        if (req !== state.playReq || err || !data || !data.Items) return;
+        state.liveProgram = data.Items[0] || null;
+        state.liveNext = data.Items[1] || null;
+        updatePlayerUi();
+      });
+  }
+
+  /* reopen the channel (stream broke off, long pause, direct stream failed) */
+  function restartLive(transcode, recover) {
+    var item = state.playerItem;
+    if (!item) return;
+    state.playToken++;
+    clearPrepareTimer();
+    stopUiTimer();
+    state.prepared = false;
+    showPlayerLoading();
+    try { webapis.avplay.stop(); } catch (e) {}
+    reportStopped(0);
+    stopEncoding();
+    closeLiveStream();
+    playLive(item, { chain: true, transcode: transcode, recover: recover });
+  }
+
+  function liveChannelList(cb) {
+    if (state.liveChannels && state.liveChannels.length) { cb(state.liveChannels); return; }
+    getJson('/LiveTv/Channels?' + uidParam() + LIVE_FIELDS, function (err, data) {
+      state.liveChannels = (!err && data && data.Items) || [];
+      cb(state.liveChannels);
+    });
+  }
+
+  function tuneChannel(ch) {
+    if (!ch || state.stopping) return;
+    try { webapis.avplay.pause(); } catch (e) {}
+    state.playToken++;
+    stopUiTimer();
+    showPlayerLoading();
+    reportStopped(0);
+    stopEncoding();
+    closeLiveStream();
+    showToast(channelLabel(ch));
+    playLive(ch, { chain: true });
+  }
+
+  /* CH ▲ / CH ▼ */
+  function switchChannel(dir) {
+    var cur = state.playerItem;
+    liveChannelList(function (list) {
+      if (state.view !== 'player' || !state.isLive || state.playerItem !== cur) return;
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].Id === cur.Id) {
+          tuneChannel(list[(i + dir + list.length) % list.length]);
+          return;
+        }
+      }
+      if (list.length) tuneChannel(list[0]);
+    });
+  }
+
+  function channelNumber(ch) {
+    return String(ch.ChannelNumber || ch.Number || '').replace(/^\s+|\s+$/g, '');
+  }
+
+  /* "7" finds "7", "007" and "7.0"; else the first number starting with the
+     digits ("7" -> "7.1"); channels without numbers: the position in the list */
+  function findChannelByNumber(list, num) {
+    var want = parseFloat(num);
+    var numbered = false;
+    var i;
+    for (i = 0; i < list.length; i++) {
+      var n = channelNumber(list[i]);
+      if (n) numbered = true;
+      if (n === num || (n && /^[\d.]+$/.test(n) && parseFloat(n) === want)) return i;
+    }
+    for (i = 0; i < list.length; i++) {
+      if (channelNumber(list[i]).replace(/^0+(?=\d)/, '').indexOf(String(want)) === 0) return i;
+    }
+    if (!numbered && want >= 1 && want <= list.length) return want - 1;
+    return -1;
+  }
+
+  /* number keys: collect digits, tune (player) or focus (channel list) after a moment */
+  function channelDigit(d) {
+    var cd = state.channelDigits || (state.channelDigits = { text: '', timer: null });
+    if (cd.text.length >= 4) cd.text = '';
+    cd.text += String(d);
+    showToast(T('Sender {0}', cd.text + '_'));
+    if (cd.timer) clearTimeout(cd.timer);
+    cd.timer = setTimeout(function () { commitChannelDigits(false); }, 1300);
+  }
+
+  function channelDigitsPending() {
+    return !!(state.channelDigits && state.channelDigits.timer);
+  }
+
+  /* the typed number: tune (player) or focus it in the list; play: also start it there (OK) */
+  function commitChannelDigits(play) {
+    var cd = state.channelDigits;
+    if (!cd || !cd.text) return;
+    if (cd.timer) clearTimeout(cd.timer);
+    var num = cd.text;
+    cd.text = '';
+    cd.timer = null;
+    if (state.view === 'player' && state.isLive) {
+      liveChannelList(function (list) {
+        var i = findChannelByNumber(list, num);
+        if (i < 0) showToast(T('Kein Sender {0}', num));
+        else if (list[i].Id !== state.playerItem.Id) tuneChannel(list[i]);
+      });
+    } else if (state.view === 'library' && isLiveLib(state.lib)) {
+      var j = findChannelByNumber(state.items, num);
+      if (j < 0) { showToast(T('Kein Sender {0}', num)); return; }
+      state.focus = j;
+      updateFocus();
+      maybeLoadMore();
+      if (play) playItem(state.items[j]);
+    }
+  }
+
+  function updateLiveUi() {
+    var p = state.liveProgram;
+    if (p && parseDate(p.EndDate) && now() > parseDate(p.EndDate) && now() - state.liveProgramsAt > 20000) {
+      loadLivePrograms(state.playerItem);
+    }
+    /* the next show goes up here: next to the key hints the bottom line would wrap */
+    psub.textContent = (p ? p.Name || '' : T('Live')) +
+      (state.liveNext ? '   ·   ' + T('Danach: {0}', programLine(state.liveNext)) : '');
+    var pct = programPct(p);
+    progressFill.style.width = (pct >= 0 ? pct : 100) + '%';
+    ptime.textContent = p && parseDate(p.StartDate) ? fmtClock(new Date(parseDate(p.StartDate))) + ' – ' +
+      fmtClock(new Date(parseDate(p.EndDate))) : T('Live');
+    pend.textContent = '';
   }
 
   /* ---------- music: albums, artists, playlists, player ---------- */

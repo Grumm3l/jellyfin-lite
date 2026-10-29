@@ -896,3 +896,11 @@ body.calm #music { background: #181818; }
 #untitle { font-size: 25px; line-height: 31px; color: #ffffff; margin-top: 4px; max-height: 62px; overflow: hidden; }
 #uncount { font-size: 19px; color: #ffcc80; margin-top: 6px; }
 #unbtns .btn { min-width: 0; padding: 10px 20px; margin: 14px 12px 0 0; font-size: 21px; }
+
+/* live TV: channel logos whole on a dark 16:9 tile */
+.poster.channel { background: #1b232b; }
+.poster.channel img { position: absolute; left: 0; right: 0; top: 0; bottom: 0; margin: auto;
+  width: auto; height: auto; max-width: 240px; max-height: 120px; }
+.channelname { position: absolute; left: 12px; right: 12px; top: 64px; font-size: 24px; color: #dddddd;
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge.fav { color: #ffcc80; }

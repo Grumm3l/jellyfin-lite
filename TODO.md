@@ -1,4 +1,3 @@
 # TODO
 
-- **Live TV / Channels**: channel list, program guide, watching live
-  channels (and recordings).
+- **Live TV**: program guide (EPG grid), recordings and timers.
